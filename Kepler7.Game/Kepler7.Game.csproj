@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><EnableWindowsTargeting>true</EnableWindowsTargeting><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>Kepler7</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup><ItemGroup><ProjectReference Include="../Kepler7.Core/Kepler7.Core.csproj" /></ItemGroup>  <ItemGroup>
+    <Content Include="../Juego/Audio/*.wav" Link="Audio/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

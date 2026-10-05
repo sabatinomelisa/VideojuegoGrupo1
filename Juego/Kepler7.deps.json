@@ -1,0 +1,36 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Kepler7/1.0.0": {
+        "dependencies": {
+          "Kepler7.Core": "1.0.0"
+        },
+        "runtime": {
+          "Kepler7.dll": {}
+        }
+      },
+      "Kepler7.Core/1.0.0": {
+        "runtime": {
+          "Kepler7.Core.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Kepler7/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Kepler7.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
