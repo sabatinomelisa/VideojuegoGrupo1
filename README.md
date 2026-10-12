@@ -25,7 +25,6 @@ No ejecutes el juego dentro del ZIP ni muevas archivos sueltos de `Juego`. El la
 | Visual Studio | No se necesita para jugar. |
 | Sonido | Opcional. Incluye música de emergencia, alarma y bufido. |
 
-No se estableció un mínimo de RAM o procesador mediante pruebas de rendimiento.
 
 ## 2. Objetivo y recorrido
 
