@@ -368,4 +368,8 @@ Check(explorerStats.NavesConPiloto==0 && explorerStats.NavesSinPiloto==30 && exp
 Check(boarding30.AsignarLote(30,"Exploradora","Negro").Count==0 && boarding30.PilotosDisponibles("Exploradora").Length==30,"Filtro de pelaje sin candidatos no ocupa pilotos");
 Check(boarding30.AsignarLote(30,"Exploradora","Atigrado").Count==30,"Lote respeta especialidad y pelaje elegidos");
 Check(boarding30.AsignarLote(30,"Combate").Count==0 && boarding30.Flota.Select(n=>n.Piloto!.Identificador).Distinct().Count()==60,"Ningún piloto puede ser asignado nuevamente a otra nave");
+
+ChecksBatalla.Ejecutar(Check);   // Nivel 2 · Escolta orbital (Strategy y Template Method)
+
 Console.WriteLine("TOTAL: " + assertions + " verificaciones correctas.");
+
