@@ -1,9 +1,10 @@
 ﻿namespace Kepler7.Core;
 
-// Tipos de acción que puede hacer una nave en su turno.
+//  NIVEL 2 ESCOLTA ORBITAL 
+//  Template Method define CUÁNDO se decide; Strategy define QUÉ se decide.
 public enum TipoAccion { Atacar, Escudo, Reparar }
+public enum EventoEspacial { Ninguno, Meteoritos, Capsula, Tormenta }
 
-// Cualquier nave que participa de la batalla (aliada o enemiga).
 public class UnidadBatalla
 {
     public string Nombre { get; init; } = "";
@@ -35,18 +36,19 @@ public class UnidadBatalla
     }
 }
 
-// Las naves enemigas son unidades que además tienen una estrategia de IA.
-// No deciden solas: le preguntan a su estrategia qué hacer (patrón Strategy).
+// [PATRÓN STRATEGY] Las naves enemigas no deciden solas: guardan una IEstrategiaIA intercambiable y le preguntan qué hacer.
 public sealed class Enemigo : UnidadBatalla
 {
     public IEstrategiaIA Estrategia { get; set; } = new IAAgresiva();
+    // La Nodriza se enfurece al quedar con la mitad de vida: cambia sola su IA y dispara dos veces.
+    public bool PuedeEnfurecerse { get; init; }
+    public bool Furiosa { get; set; }
 }
 
 // Resultado de una decisión de IA: qué hace, sobre quién y con qué intensidad.
 public sealed record AccionIA(TipoAccion Tipo, UnidadBatalla? Objetivo, int Valor, string Descripcion);
 
-// Información que la estrategia necesita para decidir:
-// quiénes son los aliados, quiénes los enemigos, qué ronda es, etc.
+// Estado de la batalla que recibe la estrategia en DecidirAccion.
 public sealed class Contexto
 {
     public List<UnidadBatalla> Aliados { get; } = new();
@@ -54,31 +56,29 @@ public sealed class Contexto
     public UnidadBatalla NaveCarga { get; set; } = new();
     public int Ronda { get; set; } = 1;
     public Random Azar { get; init; } = new();
+    // Factor de daño de los disparos mutantes: 1 = sin bloquear, 0.5 = bloqueo, 0.25 = bloqueo perfecto.
+    public float Bloqueo { get; set; } = 1f;
     public IEnumerable<UnidadBatalla> AliadosVivos => Aliados.Where(a => a.Viva);
     public IEnumerable<Enemigo> EnemigosVivos => Enemigos.Where(e => e.Viva);
 }
 
-// ---------------------------------------------------------------------
-//  STRATEGY · Inteligencia artificial intercambiable
-// ---------------------------------------------------------------------
+//  [PATRÓN STRATEGY] Inteligencia artificial intercambiable
 
-// El "contrato" que toda IA tiene que cumplir.
 public interface IEstrategiaIA
 {
     string Nombre { get; }
     string Descripcion { get; }
-    // Indica si el radar puede anticipar la jugada (la aleatoria no).
     bool Predecible { get; }
     AccionIA DecidirAccion(Enemigo enemigo, Contexto contexto);
 }
 
-// Ataca fuerte a la nave aliada con menos vida para rematarla.
+// [PATRÓN STRATEGY  Estrategia concreta] Ataca fuerte a la nave aliada con menos vida para rematarla.
 public sealed class IAAgresiva : IEstrategiaIA
 {
     public string Nombre => "Agresiva";
     public string Descripcion => "Remata a la nave aliada más dañada.";
     public bool Predecible => true;
-    public const int Potencia = 30;
+    public const int Potencia = 34;
 
     public AccionIA DecidirAccion(Enemigo enemigo, Contexto contexto)
     {
@@ -87,7 +87,7 @@ public sealed class IAAgresiva : IEstrategiaIA
     }
 }
 
-// Si está dañada se protege; si no, dispara suave a la primera nave de la formación.
+// [PATRÓN STRATEGY  Estrategia concreta] Si está dañada se protege; si no, dispara suave a la primera nave.
 public sealed class IADefensiva : IEstrategiaIA
 {
     public string Nombre => "Defensiva";
@@ -104,7 +104,7 @@ public sealed class IADefensiva : IEstrategiaIA
     }
 }
 
-// Elige al azar objetivo, acción y potencia.
+// [PATRÓN STRATEGY  Estrategia concreta] Elige al azar objetivo, acción y potencia.
 public sealed class IAAleatoria : IEstrategiaIA
 {
     public string Nombre => "Aleatoria";
@@ -121,14 +121,13 @@ public sealed class IAAleatoria : IEstrategiaIA
     }
 }
 
-// Calcula el golpe más útil: si puede destruir una nave, lo hace;
-// si no, apunta a la Nave de Carga, cuya pérdida significa la derrota.
+// [PATRÓN STRATEGY  Estrategia concreta] Calcula el golpe más útil: si puede destruir una nave, lo hace;si no, apunta a la Nave de Carga, cuya pérdida significa la derrota.
 public sealed class IACalculadora : IEstrategiaIA
 {
     public string Nombre => "Calculadora";
     public string Descripcion => "Busca destruir la Nave de Carga o rematar.";
     public bool Predecible => true;
-    public const int Potencia = 26;
+    public const int Potencia = 48;
 
     public AccionIA DecidirAccion(Enemigo enemigo, Contexto contexto)
     {
@@ -140,19 +139,16 @@ public sealed class IACalculadora : IEstrategiaIA
     }
 }
 
-// Lista de todas las IA disponibles, para el selector de la interfaz.
+// [PATRÓN STRATEGY] Catálogo de las estrategias concretas, para el selector de la interfaz.
 public static class Estrategias
 {
     public static IEstrategiaIA[] Todas => new IEstrategiaIA[] { new IAAgresiva(), new IADefensiva(), new IAAleatoria(), new IACalculadora() };
     public static IEstrategiaIA Por(string nombre) => Todas.First(e => e.Nombre == nombre);
 }
 
-// ---------------------------------------------------------------------
-//  TEMPLATE METHOD · Turno de unidad
-// ---------------------------------------------------------------------
+//  [PATRÓN TEMPLATE METHOD] Turno de unidad
 
-// Todos los turnos siguen la misma estructura: inicio, decisión, acción y finalización.
-// Cada tipo de nave redefine los pasos que le tocan, pero NO puede cambiar el orden.
+// Todos los turnos siguen la misma estructura: inicio, decisión, acción y finalización. Cada tipo de nave redefine los pasos que le tocan, pero no puede cambiar el orden.
 public abstract class TurnoUnidad
 {
     protected readonly UnidadBatalla unidad;
@@ -167,12 +163,16 @@ public abstract class TurnoUnidad
     }
 
     public UnidadBatalla Unidad => unidad;
-    // Objetivo elegido por el jugador desde la interfaz (sólo turnos aliados).
+
     public UnidadBatalla? Objetivo { get; set; }
-    // Resumen del último paso Actuar, para mostrar en pantalla.
+
     public string UltimoResultado { get; protected set; } = "";
 
-    // MÉTODO PLANTILLA. No es virtual: ninguna subclase puede cambiar el orden.
+    public float Precision { get; set; } = 1f;
+
+    protected int ConPrecision(int valor) => (int)Math.Round(valor * Precision);
+    protected string Calidad => Precision >= 2 ? "¡crítico! " : Precision < 1 ? "débil: " : "";
+
     public void EjecutarTurno()
     {
         if (!unidad.Viva) return;
@@ -182,8 +182,7 @@ public abstract class TurnoUnidad
         Finalizar();
     }
 
-    // Pasos del turno. Los "virtual" tienen un comportamiento por defecto que se puede
-    // redefinir; los "abstract" no tienen código y cada subclase está obligada a escribirlos.
+    // [PATRÓN TEMPLATE METHOD  Pasos] Los "virtual" tienen un comportamiento por defecto que se puede redefinir; los "abstract" no tienen código y cada subclase está obligada a escribirlos.
     protected virtual void Iniciar() => Registrar("Inicio de turno");
     protected abstract void Decidir();
     protected abstract void Actuar();
@@ -193,15 +192,13 @@ public abstract class TurnoUnidad
         else Registrar("Fin de turno");
     }
 
-    // Anota cada etapa en el historial que se ve en pantalla. Ej: "[R2] Soldado · Actúa: 22 de daño..."
+    // [PATRÓN TEMPLATE METHOD  Historial visible] Anota cada etapa en el historial que se ve en pantalla. 
     protected void Registrar(string paso) => historial.Add("[R" + contexto.Ronda + "] " + unidad.Rol + " · " + paso);
-
-    // Si el objetivo elegido ya no sirve (fue destruido o no es enemigo), toma el primer enemigo vivo.
     protected UnidadBatalla EnemigoObjetivo() =>
         Objetivo is { Viva: true } o && contexto.Enemigos.Contains(o) ? o : contexto.EnemigosVivos.First();
 }
 
-// Nave de Combate: disparo estándar al enemigo elegido.
+// [PATRÓN TEMPLATE METHOD Subclase concreta] 
 public sealed class TurnoSoldado : TurnoUnidad
 {
     public const int Danio = 22;
@@ -216,13 +213,13 @@ public sealed class TurnoSoldado : TurnoUnidad
 
     protected override void Actuar()
     {
-        int real = Objetivo!.RecibirDanio(Danio);
-        UltimoResultado = real + " de daño a " + Objetivo.Nombre;
+        int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
+        UltimoResultado = Calidad + real + " de daño a " + Objetivo.Nombre;
         Registrar("Actúa: " + UltimoResultado);
     }
 }
 
-// Exploradora: disparo de precisión muy fuerte, pero necesita recargar un turno.
+// [PATRÓN TEMPLATE METHOD · Subclase concreta] 
 public sealed class TurnoFrancotirador : TurnoUnidad
 {
     public const int Danio = 38;
@@ -230,8 +227,6 @@ public sealed class TurnoFrancotirador : TurnoUnidad
     private bool disparaEsteTurno;
 
     public TurnoFrancotirador(UnidadBatalla u, Contexto c, List<string> h) : base(u, c, h) { }
-
-    // Redefine Iniciar: revisa si el arma está cargada.
     protected override void Iniciar()
     {
         disparaEsteTurno = Cargado;
@@ -259,14 +254,14 @@ public sealed class TurnoFrancotirador : TurnoUnidad
             Registrar("Actúa: " + UltimoResultado);
             return;
         }
-        int real = Objetivo!.RecibirDanio(Danio);
+        int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
         Cargado = false;
-        UltimoResultado = "disparo de precisión: " + real + " de daño a " + Objetivo.Nombre;
+        UltimoResultado = "disparo de precisión: " + Calidad + real + " de daño a " + Objetivo.Nombre;
         Registrar("Actúa: " + UltimoResultado);
     }
 }
 
-// Nave de Carga: repara a un aliado (puede repararse a sí misma).
+// [PATRÓN TEMPLATE METHOD  Subclase concreta] Nave de Carga: repara a un aliado (puede repararse a sí misma).
 public sealed class TurnoMedico : TurnoUnidad
 {
     public const int Reparacion = 25;
@@ -275,8 +270,7 @@ public sealed class TurnoMedico : TurnoUnidad
 
     protected override void Decidir()
     {
-        // Si el jugador eligió un aliado vivo, repara a ese.
-        // Si no, elige al que tenga menor porcentaje de vida.
+        // Si el jugador eligió un aliado vivo, repara a ese, si no, elige al que tenga menor porcentaje de vida.
         Objetivo = Objetivo is { Viva: true } o && contexto.Aliados.Contains(o)
             ? o
             : contexto.AliadosVivos.MinBy(a => (float)a.Vida / a.VidaMax)!;
@@ -285,23 +279,20 @@ public sealed class TurnoMedico : TurnoUnidad
 
     protected override void Actuar()
     {
-        int real = Objetivo!.Reparar(Reparacion);
+        int real = Objetivo!.Reparar(ConPrecision(Reparacion));
         UltimoResultado = real > 0
-            ? "reparó " + real + " de casco a " + Objetivo.Nombre
+            ? Calidad + "reparó " + real + " de casco a " + Objetivo.Nombre
             : Objetivo.Nombre + " ya estaba intacta";
         Registrar("Actúa: " + UltimoResultado);
     }
 
-    // Redefine Finalizar: un médico nunca destruye a nadie, así que siempre cierra igual.
     protected override void Finalizar() => Registrar("Fin de turno");
 }
 
-// Nave Insignia: hackea la IA de un enemigo (le cambia la estrategia)
-// o, si no se elige estrategia, dispara un láser liviano.
+// [PATRÓN TEMPLATE METHOD  Subclase concreta]
 public sealed class TurnoComandante : TurnoUnidad
 {
     public const int Danio = 12;
-    // La IA que el jugador eligió en el desplegable "Hackear IA" (o null si no eligió).
     public IEstrategiaIA? NuevaEstrategia { get; set; }
 
     public TurnoComandante(UnidadBatalla u, Contexto c, List<string> h) : base(u, c, h) { }
@@ -319,21 +310,21 @@ public sealed class TurnoComandante : TurnoUnidad
         if (NuevaEstrategia != null && Objetivo is Enemigo enemigo)
         {
             string anterior = enemigo.Estrategia.Nombre;
-            enemigo.Estrategia = NuevaEstrategia;      // <- cambio de Strategy en plena partida
+            enemigo.Estrategia = NuevaEstrategia;      // [PATRÓN STRATEGY  Cambio de estrategia en plena partida: hackeo]
             UltimoResultado = enemigo.Nombre + ": IA " + anterior + " → " + NuevaEstrategia.Nombre;
         }
         else
         {
-            int real = Objetivo!.RecibirDanio(Danio);
-            UltimoResultado = real + " de daño a " + Objetivo.Nombre;
+            int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
+            UltimoResultado = Calidad + real + " de daño a " + Objetivo.Nombre;
         }
-        NuevaEstrategia = null;   // se usa una sola vez; el próximo turno hay que volver a elegir
+        NuevaEstrategia = null;   
         Registrar("Actúa: " + UltimoResultado);
     }
 }
 
-// Turno de las naves mutantes: el paso Decidir le pregunta a la estrategia qué hacer.
-// Template Method define CUÁNDO se decide; Strategy define QUÉ se decide.
+// [PATRÓN TEMPLATE METHOD · Subclase concreta] + [PATRÓN STRATEGY · Uso de la estrategia]. Turno de las naves mutantes: el paso Decidir le pregunta a la estrategia qué hacer.
+// Template Method define cuándo se decide; Strategy define qué se decide.
 public sealed class TurnoEnemigo : TurnoUnidad
 {
     private AccionIA? accion;
@@ -346,7 +337,7 @@ public sealed class TurnoEnemigo : TurnoUnidad
     protected override void Decidir()
     {
         var enemigo = (Enemigo)unidad;
-        accion = enemigo.Estrategia.DecidirAccion(enemigo, contexto);   // <- acá se cruzan los dos patrones
+        accion = enemigo.Estrategia.DecidirAccion(enemigo, contexto);   // [PATRÓN STRATEGY] acá se cruzan los dos patrones
         Objetivo = accion.Objetivo;
         Registrar("Decide (IA " + enemigo.Estrategia.Nombre + "): " + accion.Descripcion);
     }
@@ -360,22 +351,18 @@ public sealed class TurnoEnemigo : TurnoUnidad
         }
         else
         {
-            int real = accion.Objetivo!.RecibirDanio(accion.Valor);
-            UltimoResultado = unidad.Nombre + " hizo " + real + " de daño a " + accion.Objetivo.Nombre;
+            int real = accion.Objetivo!.RecibirDanio((int)Math.Round(accion.Valor * contexto.Bloqueo));
+            UltimoResultado = unidad.Nombre + " hizo " + real + " de daño a " + accion.Objetivo.Nombre + (contexto.Bloqueo < 1 ? " (bloqueado)" : "");
         }
         Registrar("Actúa: " + UltimoResultado);
     }
 }
-
-// ---------------------------------------------------------------------
 //  Coordinador de la batalla (reglas de rondas, victoria y derrota)
-// ---------------------------------------------------------------------
-
 // Medalla según cuántas rondas tardó el jugador en ganar.
 public sealed record MedallaBatalla(int Rondas, string Nivel)
 {
     public static MedallaBatalla Obtener(int rondas) =>
-        new(rondas, rondas <= 7 ? "Oro" : rondas <= 9 ? "Plata" : "Bronce");
+        new(rondas, rondas <= 6 ? "Oro" : rondas <= 8 ? "Plata" : "Bronce");
 }
 
 // Arma la batalla y maneja de quién es el turno, las rondas y el final de la partida.
@@ -388,19 +375,40 @@ public sealed class BatallaOrbital
     public bool FaseEnemiga { get; private set; }
     public int CambiosDeEstrategia { get; private set; }
     public string UltimoResultado { get; private set; } = "";
-    private int indiceAliado, indiceEnemigo;
+    private int indiceAliado;
+   
+    private readonly Queue<TurnoEnemigo> colaEnemiga = new();
+
+    // Si pasan más rondas que éstas sin destruir a los mutantes, llegan refuerzos y se pierde.
+    public const int RondasMaximas = 10;
+    public const int DanioMeteorito = 18, MeteoritosPorLluvia = 3, ReparacionCapsula = 30;
+
+    // ---------- Eventos sorpresa ----------
+    public bool EventosActivos { get; init; } = true;
+    public EventoEspacial EventoRonda { get; private set; }
+    public int MeteoritosPendientes { get; private set; }
+    public UnidadBatalla? MeteoritoApunta { get; private set; }
+    public bool CapsulaDisponible { get; private set; }
+    private EventoEspacial ultimoEvento;
+    private IEstrategiaIA? iaTormenta;
+    private readonly Dictionary<Enemigo, IEstrategiaIA> antesDeLaTormenta = new();
 
     public int Ronda => Contexto.Ronda;
     public bool Victoria => !Contexto.EnemigosVivos.Any();
-    public bool Derrota => !Contexto.NaveCarga.Viva || !Contexto.AliadosVivos.Any();
+    public bool Derrota => !Contexto.NaveCarga.Viva || !Contexto.AliadosVivos.Any() || Contexto.Ronda > RondasMaximas;
     public bool Terminada => Victoria || Derrota;
-    public TurnoUnidad? TurnoActual => Terminada || FaseEnemiga ? null : TurnosAliados[indiceAliado];
+    // Mientras caen meteoritos, tu flota todavía no puede jugar.
+    public TurnoUnidad? TurnoActual => Terminada || FaseEnemiga || MeteoritosPendientes > 0 ? null : TurnosAliados[indiceAliado];
     public MedallaBatalla? Medalla => Victoria ? MedallaBatalla.Obtener(Ronda) : null;
+    // El próximo mutante que va a disparar (la pantalla muestra su carga antes del disparo).
+    public Enemigo? ProximoEnemigo => FaseEnemiga && !Terminada
+        ? colaEnemiga.FirstOrDefault(t => t.Unidad.Viva)?.Unidad as Enemigo
+        : null;
 
     private BatallaOrbital(Contexto contexto) { Contexto = contexto; }
 
     // Arma la batalla usando los pilotos de la flota del nivel 1 cuando existen.
-    public static BatallaOrbital Crear(Progreso? progreso = null, int? semilla = null)
+    public static BatallaOrbital Crear(Progreso? progreso = null, int? semilla = null, bool eventos = true)
     {
         string PilotoDe(string tipo) =>
             progreso?.Flota.FirstOrDefault(n => n.Tipo == tipo && n.Piloto != null)?.Piloto!.Nombre ?? "Piloto " + tipo;
@@ -416,12 +424,12 @@ public sealed class BatallaOrbital
         c.NaveCarga = medico;
 
         // Naves mutantes, cada una con su IA inicial
-        c.Enemigos.Add(new Enemigo { Nombre = "Mutante Alfa", Rol = "Enemigo", VidaMax = 90, Vida = 90, Estrategia = new IAAgresiva() });
-        c.Enemigos.Add(new Enemigo { Nombre = "Mutante Beta", Rol = "Enemigo", VidaMax = 90, Vida = 90, Estrategia = new IADefensiva() });
-        c.Enemigos.Add(new Enemigo { Nombre = "Nodriza", Rol = "Enemigo", VidaMax = 140, Vida = 140, Estrategia = new IACalculadora() });
+        c.Enemigos.Add(new Enemigo { Nombre = "Mutante Alfa", Rol = "Enemigo", VidaMax = 120, Vida = 120, Estrategia = new IAAgresiva() });
+        c.Enemigos.Add(new Enemigo { Nombre = "Mutante Beta", Rol = "Enemigo", VidaMax = 120, Vida = 120, Estrategia = new IADefensiva() });
+        c.Enemigos.Add(new Enemigo { Nombre = "Nodriza", Rol = "Enemigo", VidaMax = 160, Vida = 160, Estrategia = new IACalculadora(), PuedeEnfurecerse = true });
 
         // Un turno (Template Method) para cada nave
-        var b = new BatallaOrbital(c);
+        var b = new BatallaOrbital(c) { EventosActivos = eventos };
         b.TurnosAliados.Add(new TurnoSoldado(soldado, c, b.Historial));
         b.TurnosAliados.Add(new TurnoFrancotirador(francotirador, c, b.Historial));
         b.TurnosAliados.Add(new TurnoMedico(medico, c, b.Historial));
@@ -432,64 +440,165 @@ public sealed class BatallaOrbital
         return b;
     }
 
-    // Objetivos que la pantalla puede ofrecer para la nave que juega ahora:
-    // el Médico elige entre aliados; los demás, entre enemigos.
     public IEnumerable<UnidadBatalla> ObjetivosValidos() =>
         TurnoActual is TurnoMedico ? Contexto.AliadosVivos : Contexto.EnemigosVivos;
 
     // Juega el turno de la nave aliada activa con lo que eligió el jugador.
-    public void JugarTurnoAliado(UnidadBatalla? objetivo, IEstrategiaIA? hackeo = null)
+    public void JugarTurnoAliado(UnidadBatalla? objetivo, IEstrategiaIA? hackeo = null, float precision = 1f)
     {
         var turno = TurnoActual ?? throw new InvalidOperationException("No es el turno de la flota.");
         turno.Objetivo = objetivo;
+        turno.Precision = precision;
         if (turno is TurnoComandante comandante)
         {
             comandante.NuevaEstrategia = hackeo;
             if (hackeo != null && objetivo is Enemigo e && e.Estrategia.Nombre != hackeo.Nombre) CambiosDeEstrategia++;
         }
-        turno.EjecutarTurno();                       // <- el método plantilla
+        turno.EjecutarTurno();                       // [PATRÓN TEMPLATE METHOD]
         UltimoResultado = turno.Unidad.Nombre + ": " + turno.UltimoResultado;
+        RevisarFuria();
         if (Terminada) return;
         indiceAliado++;
         SaltarAliadosCaidos();
-        if (indiceAliado >= TurnosAliados.Count) { FaseEnemiga = true; indiceEnemigo = 0; }
+        if (indiceAliado >= TurnosAliados.Count) PrepararFaseEnemiga();
+    }
+    private void PrepararFaseEnemiga()
+    {
+        FaseEnemiga = true;
+        CapsulaDisponible = false;                  
+        colaEnemiga.Clear();
+        foreach (var t in TurnosEnemigos)
+        {
+            if (!t.Unidad.Viva) continue;
+            colaEnemiga.Enqueue(t);
+            if (((Enemigo)t.Unidad).Furiosa) colaEnemiga.Enqueue(t);   
+        }
     }
 
-    // La pantalla lo llama con un Timer para animar a cada enemigo por separado.
-    // Devuelve false cuando ya no quedan enemigos por actuar en la ronda.
-    public bool EjecutarSiguienteEnemigo()
+    public bool EjecutarSiguienteEnemigo(float bloqueo = 1f)
     {
         if (!FaseEnemiga || Terminada) return false;
-        while (indiceEnemigo < TurnosEnemigos.Count && !TurnosEnemigos[indiceEnemigo].Unidad.Viva) indiceEnemigo++;
-        if (indiceEnemigo < TurnosEnemigos.Count)
+        while (colaEnemiga.Count > 0 && !colaEnemiga.Peek().Unidad.Viva) colaEnemiga.Dequeue();
+        if (colaEnemiga.Count > 0)
         {
-            var turno = TurnosEnemigos[indiceEnemigo++];
-            turno.EjecutarTurno();                   // <- el mismo método plantilla
+            var turno = colaEnemiga.Dequeue();
+            Contexto.Bloqueo = bloqueo;              // lo que logró el jugador al bloquear
+            turno.EjecutarTurno();                   // [PATRÓN TEMPLATE METHOD] 
+            Contexto.Bloqueo = 1f;
             UltimoResultado = turno.UltimoResultado;
             if (Terminada) return false;
         }
-        if (indiceEnemigo < TurnosEnemigos.Count && TurnosEnemigos.Skip(indiceEnemigo).Any(t => t.Unidad.Viva)) return true;
+        if (colaEnemiga.Any(t => t.Unidad.Viva)) return true;
         NuevaRonda();
         return false;
     }
-
-    // Lo que muestra el radar de la Exploradora sobre la próxima jugada de un enemigo.
     public string Intencion(Enemigo enemigo)
     {
         if (!enemigo.Viva) return "Destruida";
         if (Terminada) return "—";
         if (!enemigo.Estrategia.Predecible) return "Impredecible";
-        // Le pregunta a la estrategia sin ejecutar nada: es solo una "vista previa".
         return enemigo.Estrategia.DecidirAccion(enemigo, Contexto).Descripcion;
+    }
+
+    // [PATRÓN STRATEGY · Cambio de estrategia en plena partida: furia]. La Nodriza herida se enfurece: el juego le cambia la IA a Agresiva.
+    private void RevisarFuria()
+    {
+        foreach (var e in Contexto.EnemigosVivos)
+        {
+            if (!e.PuedeEnfurecerse || e.Furiosa || e.Vida > e.VidaMax / 2) continue;
+            e.Furiosa = true;
+            string anterior = e.Estrategia.Nombre;
+            e.Estrategia = new IAAgresiva();
+            Historial.Add("[R" + Ronda + "] ¡" + e.Nombre + " se enfurece! IA " + anterior + " → Agresiva · dispara dos veces");
+        }
+    }
+
+    // ---------- Eventos sorpresa ----------
+    private void SortearEvento()
+    {
+        EventoRonda = EventoEspacial.Ninguno;
+        if (!EventosActivos || Contexto.Ronda < 2 || Contexto.Azar.Next(100) >= 40) return;
+        var opciones = new[] { EventoEspacial.Meteoritos, EventoEspacial.Capsula, EventoEspacial.Tormenta }.Where(e => e != ultimoEvento).ToArray();
+        IniciarEvento(opciones[Contexto.Azar.Next(opciones.Length)]);
+    }
+
+    // Público para poder probar cada evento en las verificaciones.
+    public void IniciarEvento(EventoEspacial evento)
+    {
+        EventoRonda = ultimoEvento = evento;
+        switch (evento)
+        {
+            case EventoEspacial.Meteoritos:
+                MeteoritosPendientes = MeteoritosPorLluvia;
+                MeteoritoApunta = AliadoAlAzar();
+                Historial.Add("[R" + Ronda + "] Evento · ¡Lluvia de meteoritos!");
+                break;
+            case EventoEspacial.Capsula:
+                CapsulaDisponible = true;
+                Historial.Add("[R" + Ronda + "] Evento · Una cápsula de reparación flota a la deriva");
+                break;
+            case EventoEspacial.Tormenta:
+                // [PATRÓN STRATEGY · Cambio de estrategia en plena partida: tormenta]
+                // Todas las IA se reemplazan por la Aleatoria durante una ronda.
+                iaTormenta = new IAAleatoria();
+                antesDeLaTormenta.Clear();
+                foreach (var e in Contexto.EnemigosVivos) { antesDeLaTormenta[e] = e.Estrategia; e.Estrategia = iaTormenta; }
+                Historial.Add("[R" + Ronda + "] Evento · Tormenta de iones: todas las IA pasan a Aleatoria");
+                break;
+        }
+    }
+
+    private UnidadBatalla AliadoAlAzar()
+    {
+        var vivos = Contexto.AliadosVivos.ToList();
+        return vivos[Contexto.Azar.Next(vivos.Count)];
+    }
+
+    // Cae el meteorito sobre la nave apuntada; 
+    public void ImpactarMeteorito(float bloqueo = 1f)
+    {
+        if (MeteoritosPendientes <= 0 || MeteoritoApunta == null) return;
+        int real = MeteoritoApunta.RecibirDanio((int)Math.Round(DanioMeteorito * bloqueo));
+        UltimoResultado = "Meteorito: " + real + " de daño a " + MeteoritoApunta.Nombre + (bloqueo < 1 ? " (bloqueado)" : "");
+        Historial.Add("[R" + Ronda + "] Evento · " + UltimoResultado);
+        MeteoritosPendientes--;
+        if (Terminada) MeteoritosPendientes = 0;
+        MeteoritoApunta = MeteoritosPendientes > 0 ? AliadoAlAzar() : null;
+        if (MeteoritosPendientes == 0) SaltarAliadosCaidos();
+    }
+
+    // Disparar a la cápsula repara a la nave más dañada.
+    public UnidadBatalla? RecogerCapsula()
+    {
+        if (!CapsulaDisponible || Terminada) return null;
+        CapsulaDisponible = false;
+        var herida = Contexto.AliadosVivos.MinBy(a => (float)a.Vida / a.VidaMax)!;
+        int real = herida.Reparar(ReparacionCapsula);
+        UltimoResultado = "Cápsula: +" + real + " a " + herida.Nombre;
+        Historial.Add("[R" + Ronda + "] Evento · " + UltimoResultado);
+        return herida;
+    }
+
+    // Al terminar la ronda, cada mutante recupera la IA que tenía (salvo que la hayan cambiado durante la tormenta).
+    private void TerminarTormenta()
+    {
+        if (iaTormenta == null) return;
+        foreach (var (e, ia) in antesDeLaTormenta)
+            if (ReferenceEquals(e.Estrategia, iaTormenta)) e.Estrategia = ia;
+        antesDeLaTormenta.Clear();
+        iaTormenta = null;
+        Historial.Add("[R" + Ronda + "] La tormenta de iones se disipa");
     }
 
     private void NuevaRonda()
     {
         FaseEnemiga = false;
+        TerminarTormenta();
         Contexto.Ronda++;
         indiceAliado = 0;
         SaltarAliadosCaidos();
         Historial.Add("[R" + Contexto.Ronda + "] ── Nueva ronda ──");
+        if (!Terminada) SortearEvento();
     }
 
     // Si una nave aliada fue destruida, su turno se saltea.
