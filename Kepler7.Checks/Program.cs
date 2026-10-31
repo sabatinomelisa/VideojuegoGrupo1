@@ -166,7 +166,7 @@ for(int recipe=0;recipe<3;recipe++)
 Check(designs.Count>120,"150 modelos aleatorios variados, multicolor y con componentes de su receta");
 var repeated=Modelos.Aleatorio(0,new Random(13));var avoided=Modelos.Aleatorio(0,new Random(13),repeated);
 Check(!repeated.SequenceEqual(avoided),"Se evita repetir incluso con la misma secuencia aleatoria");
-// Tanques sólidos y censo persistente.
+
 var tanks=new Pasillo();
 Check(tanks.Capsulas.Length==6 && tanks.Mutantes.All(m=>!tanks.Solidos.Any(o=>o.Toca(m.Posicion,20))),"Ningún zombie nace dentro de tanques ni muebles");
 tanks.Mutantes.Clear();
@@ -368,4 +368,8 @@ Check(explorerStats.NavesConPiloto==0 && explorerStats.NavesSinPiloto==30 && exp
 Check(boarding30.AsignarLote(30,"Exploradora","Negro").Count==0 && boarding30.PilotosDisponibles("Exploradora").Length==30,"Filtro de pelaje sin candidatos no ocupa pilotos");
 Check(boarding30.AsignarLote(30,"Exploradora","Atigrado").Count==30,"Lote respeta especialidad y pelaje elegidos");
 Check(boarding30.AsignarLote(30,"Combate").Count==0 && boarding30.Flota.Select(n=>n.Piloto!.Identificador).Distinct().Count()==60,"Ningún piloto puede ser asignado nuevamente a otra nave");
+
+ChecksBatalla.Ejecutar(Check);   // Nivel 2  Escolta orbital (Strategy y Template Method)
+
 Console.WriteLine("TOTAL: " + assertions + " verificaciones correctas.");
+

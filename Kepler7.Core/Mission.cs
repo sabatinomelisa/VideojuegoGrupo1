@@ -27,7 +27,7 @@ public readonly record struct Caja(float X, float Y, float W, float H)
 {
     public bool Toca(Vector2 p, float radio) => p.X + radio > X && p.X - radio < X + W && p.Y + radio > Y && p.Y - radio < Y + H;
 }
-// Simulación independiente del formulario. Tick recibe segundos, nunca controles de Windows.
+
 public sealed class Pasillo
 {
     public const float Largo = 2700;
@@ -44,7 +44,7 @@ public sealed class Pasillo
     public List<Particula> Particulas { get; } = new();
     public List<Vector2> Botiquines { get; } = new() { new(910, 430), new(1730, 125) };
     public Caja[] Obstaculos { get; } = { new(480, 55, 85, 155), new(960, 365, 90, 150), new(1640, 45, 85, 150), new(2180, 360, 85, 160) };
-    // Mismas dimensiones que DrawPod a escala .64; la decoración usa estas cajas.
+    
     public Caja[] Capsulas { get; } = Enumerable.Range(0,6).Select(i => new Caja(240+i*420-44.8f,131.76f,89.6f,105.6f)).ToArray();
     public IEnumerable<Caja> Solidos => Obstaculos.Concat(Capsulas);
     private float recarga;
@@ -81,7 +81,7 @@ public sealed class Pasillo
             {
                 var paso = Vector2.Normalize(d) * m.Velocidad * dt;
                 var siguiente = Mover(m.Posicion, paso, 20);
-                // Si un cajón bloquea el recorrido, rodearlo por el centro del pasillo.
+                
                 if (Vector2.DistanceSquared(siguiente, m.Posicion) < paso.LengthSquared() * .2f)
                     siguiente = Mover(m.Posicion, new Vector2(0, Math.Sign(280 - m.Posicion.Y) * m.Velocidad * dt), 20);
                 m.Posicion = siguiente;
@@ -141,12 +141,30 @@ public sealed class Progreso
     public List<Nave> Flota { get; set; } = new();
     public int XP { get; set; }
     public bool Lanzada { get; set; }
-    // Registro fundacional estable: se reconstruye con los mismos IDs al cargar.
+   
     private List<Tripulante>? habitantes;
     [System.Text.Json.Serialization.JsonIgnore]
     public List<Tripulante> Habitantes => habitantes ??= BibliotecaTripulantes.CrearHabitantes();
     public bool FlyweightDominado { get; set; }
     public bool BridgeDominado {get;set;}
+
+    // Nivel 2  Escolta orbital: insignias de Strategy y Template Method, y mejor medalla.
+    public bool StrategyDominado { get; set; }
+    public bool TemplateMethodDominado { get; set; }
+    public MedallaBatalla? MedallaBatalla { get; set; }
+    // Insignia Strategy: la primera vez que se hackea la IA de un mutante.
+    public bool RegistrarHackeo()
+    {
+        if (StrategyDominado) return false;
+        StrategyDominado = true; XP += 100; return true;
+    }
+    // Insignia Template Method: la primera victoria del nivel 2 
+    public bool RegistrarVictoriaNivel2(MedallaBatalla medalla)
+    {
+        if (MedallaBatalla == null || medalla.Rondas < MedallaBatalla.Rondas) MedallaBatalla = medalla;
+        if (TemplateMethodDominado) return false;
+        TemplateMethodDominado = true; XP += 200; return true;
+    }
     public List<Transmision> Transmisiones {get;set;}=new();
     public List<ResumenOperacion> Operaciones {get;set;}=new();
     public void RegistrarOperacion(ResumenOperacion resumen)

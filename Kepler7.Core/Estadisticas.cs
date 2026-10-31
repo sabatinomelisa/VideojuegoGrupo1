@@ -25,6 +25,8 @@ public static class Logros
         new Insignia("Builder","Patitas constructoras","Construí tu primera nave.",p.BuilderDominado),
         new Insignia("Prototype","Más bigotes a bordo","Cloná al Ingeniero Jefe.",p.PrototypeDominado),
         new Insignia("Flyweight","Cada michi cuenta","Recuperá el censo de la estación.",p.FlyweightDominado),
-        new Insignia("Bridge","Una voz entre las estrellas","Restablecé el contacto y enviá un informe de misión a la Tierra.",p.BridgeDominado)
+        new Insignia("Bridge","Una voz entre las estrellas","Restablecé el contacto y enviá un informe de misión a la Tierra.",p.BridgeDominado),
+        new Insignia("Strategy","Mente hackeada","Cambiá la IA de una nave mutante con el Comandante.",p.StrategyDominado),
+        new Insignia("Template Method","Escolta completada","Ganá la batalla del nivel 2 turno a turno.",p.TemplateMethodDominado)
     };
 }
