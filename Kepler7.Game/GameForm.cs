@@ -39,6 +39,7 @@ public sealed partial class GameForm : Form
 
     // Resultado de la última operación realizada.
     private string resultadoBoveda = "Seleccioná un documento para comenzar.";
+
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 16 };
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private double previous;

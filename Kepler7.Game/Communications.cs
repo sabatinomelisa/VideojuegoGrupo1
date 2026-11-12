@@ -104,6 +104,7 @@ public sealed partial class GameForm
         TextAt(g,storyDraft==null?"No hay informes pendientes":antennaLink.Listo?"¡Señal estable! Lista para transmitir":"Alineá los controles con las marcas verdes",69,603,17,antennaLink.Listo?Mint:Gold,true);
         TextAt(g,"INFORME DE LA MISIÓN",601,204,12,Muted,true);
         Wrap(g,storyDraft?.Titulo??"Esperando el próximo avance",601,229,530,42,21,White);
+
         string[] types = { "Texto", "Alerta", "Emergencia" };
         string[] names = { "Sin cifrado", "AES", "Cuántico" };
 
@@ -146,6 +147,7 @@ public sealed partial class GameForm
         var sent=pendingTransmission ?? (showTransmissionHistory && transmissionIndex>=0 && transmissionIndex<progress.Transmisiones.Count?progress.Transmisiones[transmissionIndex]:null);
         TextAt(g,sent==null?"PAQUETE DE SALIDA":(pendingTransmission!=null?"ENVIANDO · ":"HISTORIAL · ")+sent.Tipo+" / "+sent.Cifrado,601,515,12,Mint,true);
         Wrap(g, sent?.Resultado ?? "El informe aparecerá aquí al transmitir. El historial conserva los envíos anteriores.", 602, 540, 532, 60, 12, White); Button(g,storyDraft==null?"Sin informes pendientes":idle?"Transmitir a la Tierra":"Enviando…",600,615,539,43,()=>
+
         {
             if(storyDraft==null)return;
             pendingTransmission=antennaLink.Transmitir(outbound,communicationMessage);
