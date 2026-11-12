@@ -104,20 +104,50 @@ public sealed partial class GameForm
         TextAt(g,storyDraft==null?"No hay informes pendientes":antennaLink.Listo?"¡Señal estable! Lista para transmitir":"Alineá los controles con las marcas verdes",69,603,17,antennaLink.Listo?Mint:Gold,true);
         TextAt(g,"INFORME DE LA MISIÓN",601,204,12,Muted,true);
         Wrap(g,storyDraft?.Titulo??"Esperando el próximo avance",601,229,530,42,21,White);
-        string[] types={"Texto","Alerta","Emergencia"},names={"Sin cifrado","AES","Cuántico"};
-        for(int i=0;i<3;i++)
-        {
-            int n=i;
-            Button(g,names[i],600+i*182,302,173,35,()=>{showTransmissionHistory=false;cipherType=n;outbound.Cifrado=ciphers[n];},cipherType==i,idle && storyDraft!=null);
-        }
-        TextAt(g,(cipherType==2?"CANAL SIMULADO":"CANAL")+" · "+(storyDraft==null?"Sin informe":types[messageType]),601,279,12,Muted,true);
-        TextAt(g,"TU MENSAJE",601,356,12,Muted,true);
 
-        Wrap(g,storyDraft==null?ComunicacionesHistoria.ProximoObjetivo(progress):communicationMessage,602,382,530,64,16,White);
+        string[] types = { "Texto", "Alerta", "Emergencia" };
+        string[] names = { "Sin cifrado", "AES", "Cuántico" };
+
+        // Selección del tipo de mensaje.
+        TextAt(g, "TIPO DE MENSAJE", 601, 275, 12, Muted, true);
+
+        for (int i = 0; i < 3; i++)
+        {
+            int n = i;
+
+            Button(g, types[i], 600 + i * 182, 300, 173, 35, () =>
+            {
+                ChooseMessage(n);
+                Invalidate();
+            }, messageType == i, idle && storyDraft != null);
+        }
+
+        // Selección independiente del cifrado.
+        TextAt(g, "MÉTODO DE CIFRADO", 601, 350, 12, Muted, true);
+
+        for (int i = 0; i < 3; i++)
+        {
+            int n = i;
+
+            Button(g, names[i], 600 + i * 182, 375, 173, 35, () =>
+            {
+                showTransmissionHistory = false;
+                cipherType = n;
+                outbound.Cifrado = ciphers[n];
+                Invalidate();
+            }, cipherType == i, idle && storyDraft != null);
+        }
+        TextAt(g,
+            (cipherType == 2 ? "CANAL SIMULADO" : "CANAL") +
+            " · " + types[messageType] + " / " + names[cipherType],
+            601, 410, 12, Muted, true);
+        TextAt(g, "TU MENSAJE", 601, 425, 12, Muted, true);
+
+        Wrap(g,storyDraft==null?ComunicacionesHistoria.ProximoObjetivo(progress):communicationMessage,602,450,530,64,16,White);
         var sent=pendingTransmission ?? (showTransmissionHistory && transmissionIndex>=0 && transmissionIndex<progress.Transmisiones.Count?progress.Transmisiones[transmissionIndex]:null);
-        TextAt(g,sent==null?"PAQUETE DE SALIDA":(pendingTransmission!=null?"ENVIANDO · ":"HISTORIAL · ")+sent.Tipo+" / "+sent.Cifrado,601,448,12,Mint,true);
-        Wrap(g,sent?.Resultado??"El informe aparecerá aquí al transmitir. El historial conserva los envíos anteriores.",602,475,532,99,12,White);
-        Button(g,storyDraft==null?"Sin informes pendientes":idle?"Transmitir a la Tierra":"Enviando…",600,600,539,43,()=>
+        TextAt(g,sent==null?"PAQUETE DE SALIDA":(pendingTransmission!=null?"ENVIANDO · ":"HISTORIAL · ")+sent.Tipo+" / "+sent.Cifrado,601,515,12,Mint,true);
+        Wrap(g, sent?.Resultado ?? "El informe aparecerá aquí al transmitir. El historial conserva los envíos anteriores.", 602, 540, 532, 60, 12, White); Button(g,storyDraft==null?"Sin informes pendientes":idle?"Transmitir a la Tierra":"Enviando…",600,615,539,43,()=>
+
         {
             if(storyDraft==null)return;
             pendingTransmission=antennaLink.Transmitir(outbound,communicationMessage);
