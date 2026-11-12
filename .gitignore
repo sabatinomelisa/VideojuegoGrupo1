@@ -1,0 +1,23 @@
+# Visual Studio / C# temporales
+[Oo]bj/
+[Bb]in/
+.vs/
+*.user
+*.userosscache
+*.suo
+.cache
+
+# Carpetas de dependencias o paquetes NuGet locales
+packages/
+**/packages/*
+!**/packages/build/
+
+# Archivos de compilación y respaldos
+*.log
+*.tmp
+*.bak
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
