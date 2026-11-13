@@ -148,6 +148,32 @@ public sealed class Progreso
     public bool FlyweightDominado { get; set; }
     public bool BridgeDominado {get;set;}
 
+    // Logro del patrón Facade
+    public bool FacadeDominado { get; set; }
+
+    // Logro del patrón Proxy
+    public bool ProxyDominado { get; set; }
+
+    // Logro Facade: controlar los sistemas de la estación
+    public bool RegistrarFacade()
+    {
+        if (FacadeDominado) return false;
+
+        FacadeDominado = true;
+        XP += 150;
+        return true;
+    }
+
+    // Logro Proxy: acceder a la bóveda con autorización
+    public bool RegistrarProxy()
+    {
+        if (ProxyDominado) return false;
+
+        ProxyDominado = true;
+        XP += 150;
+        return true;
+    }
+
     // Nivel 2  Escolta orbital: insignias de Strategy y Template Method, y mejor medalla.
     public bool StrategyDominado { get; set; }
     public bool TemplateMethodDominado { get; set; }
