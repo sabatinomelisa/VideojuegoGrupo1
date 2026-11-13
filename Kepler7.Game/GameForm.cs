@@ -232,6 +232,11 @@ public sealed partial class GameForm : Form
         Button(g, "INICIAR TURNO", 80, 230, 220, 55, () =>
         {
             resultadoControl = facadeControl.IniciarTurno();
+            if (resultadoControl.Count > 0 && progress.RegistrarFacade())
+            {
+                Save();
+                MessageBox.Show("¡Logro desbloqueado: Comandante de la estación! +150 XP");
+            }
             Invalidate();
         }, true);
 
@@ -303,6 +308,17 @@ public sealed partial class GameForm : Form
         Button(g, "LEER DOCUMENTO", 80, 335, 220, 50, () =>
         {
             resultadoBoveda = proxyBoveda.LeerArchivo("informe-mision");
+
+            if (rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.Capitan ||
+                rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.OficialSeguridad)
+            {
+                if (progress.RegistrarProxy())
+                {
+                    Save();
+                    MessageBox.Show("¡Logro desbloqueado: Acceso autorizado! +150 XP");
+                }
+            }
+
             Invalidate();
         }, true);
 
