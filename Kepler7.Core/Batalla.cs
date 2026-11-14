@@ -1,12 +1,15 @@
-﻿namespace Kepler7.Core;
+using Kepler7.Core.Defensa;
+namespace Kepler7.Core;
 
 //  NIVEL 2 ESCOLTA ORBITAL 
 //  Template Method define CUÁNDO se decide; Strategy define QUÉ se decide.
 public enum TipoAccion { Atacar, Escudo, Reparar }
 public enum EventoEspacial { Ninguno, Meteoritos, Capsula, Tormenta }
 
-public class UnidadBatalla
+public class UnidadBatalla : Kepler7.Core.Comandos.IPosicionable
 {
+    public int X { get; set; }
+    public int Y { get; set; }
     public string Nombre { get; init; } = "";
     public string Rol { get; init; } = "";
     public string Piloto { get; init; } = "";
@@ -16,15 +19,26 @@ public class UnidadBatalla
     public bool Viva => Vida > 0;
     public bool Herida => Viva && Vida < VidaMax;
 
-    // El escudo absorbe la mitad de un único impacto y después se apaga.
-    public int RecibirDanio(int danio)
+    // Módulos defensivos de la cadena (0 = no tiene). Se usan en los eslabones Esquiva y Armadura.
+    public double ProbEsquiva { get; set; }
+    public int ReduccionArmadura { get; set; }
+
+    // [PATRÓN CHAIN OF RESPONSIBILITY] Cada nave tiene su cadena de defensas, que se puede reordenar en plena partida.
+    private CadenaDefensa? defensa;
+    public CadenaDefensa Defensa => defensa ??= CadenaDefensa.Estandar(this);
+    public Danio? UltimoAtaque { get; private set; }
+
+    // Todo el daño pasa por la cadena: Esquiva → Bloqueo → Armadura → Escudo → Vida.
+    public Danio RecibirAtaque(Danio danio)
     {
-        if (!Viva || danio <= 0) return 0;
-        int real = Escudo ? danio / 2 : danio;
-        Escudo = false;
-        Vida = Math.Max(0, Vida - real);
-        return real;
+        UltimoAtaque = danio;
+        if (!Viva || danio.Cantidad <= 0) return danio;
+        return Defensa.Procesar(danio);
     }
+
+    // Se mantiene para el resto del código: devuelve cuánto daño llegó al casco.
+    // Con la cadena de fábrica y sin módulos extra, el escudo absorbe la mitad de un único impacto, como antes.
+    public int RecibirDanio(int danio) => RecibirAtaque(new Danio(danio)).LlegoALaVida;
 
     // Suma vida sin pasarse del máximo. Devuelve cuánto reparó de verdad.
     public int Reparar(int cantidad)
@@ -171,6 +185,15 @@ public abstract class TurnoUnidad
     public float Precision { get; set; } = 1f;
 
     protected int ConPrecision(int valor) => (int)Math.Round(valor * Precision);
+
+    // [PATRÓN CHAIN OF RESPONSIBILITY] Un golpe viaja por la cadena de defensas del objetivo.
+    public Danio? UltimoDanio { get; private set; }
+    protected int Golpear(UnidadBatalla objetivo, int cantidad, float factorBloqueo = 1f)
+    {
+        UltimoDanio = objetivo.RecibirAtaque(new Danio(cantidad, unidad.Nombre) { FactorBloqueo = factorBloqueo, Azar = contexto.Azar });
+        return UltimoDanio.LlegoALaVida;
+    }
+    protected string Esquivo(UnidadBatalla objetivo) => UltimoDanio is { Esquivado: true } ? objetivo.Nombre + " esquivó el disparo" : "";
     protected string Calidad => Precision >= 2 ? "¡crítico! " : Precision < 1 ? "débil: " : "";
 
     public void EjecutarTurno()
@@ -213,8 +236,8 @@ public sealed class TurnoSoldado : TurnoUnidad
 
     protected override void Actuar()
     {
-        int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
-        UltimoResultado = Calidad + real + " de daño a " + Objetivo.Nombre;
+        int real = Golpear(Objetivo!, ConPrecision(Danio));
+        UltimoResultado = Esquivo(Objetivo) is { Length: > 0 } e ? e : Calidad + real + " de daño a " + Objetivo.Nombre;
         Registrar("Actúa: " + UltimoResultado);
     }
 }
@@ -224,6 +247,8 @@ public sealed class TurnoFrancotirador : TurnoUnidad
 {
     public const int Danio = 38;
     public bool Cargado { get; private set; } = true;
+    // Lo usa Deshacer para devolver el cañón al estado que tenía.
+    public void RestaurarCarga(bool cargado) => Cargado = cargado;
     private bool disparaEsteTurno;
 
     public TurnoFrancotirador(UnidadBatalla u, Contexto c, List<string> h) : base(u, c, h) { }
@@ -254,9 +279,9 @@ public sealed class TurnoFrancotirador : TurnoUnidad
             Registrar("Actúa: " + UltimoResultado);
             return;
         }
-        int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
+        int real = Golpear(Objetivo!, ConPrecision(Danio));
         Cargado = false;
-        UltimoResultado = "disparo de precisión: " + Calidad + real + " de daño a " + Objetivo.Nombre;
+        UltimoResultado = Esquivo(Objetivo) is { Length: > 0 } e ? e : "disparo de precisión: " + Calidad + real + " de daño a " + Objetivo.Nombre;
         Registrar("Actúa: " + UltimoResultado);
     }
 }
@@ -315,8 +340,8 @@ public sealed class TurnoComandante : TurnoUnidad
         }
         else
         {
-            int real = Objetivo!.RecibirDanio(ConPrecision(Danio));
-            UltimoResultado = Calidad + real + " de daño a " + Objetivo.Nombre;
+            int real = Golpear(Objetivo!, ConPrecision(Danio));
+            UltimoResultado = Esquivo(Objetivo) is { Length: > 0 } e ? e : Calidad + real + " de daño a " + Objetivo.Nombre;
         }
         NuevaEstrategia = null;   
         Registrar("Actúa: " + UltimoResultado);
@@ -351,8 +376,10 @@ public sealed class TurnoEnemigo : TurnoUnidad
         }
         else
         {
-            int real = accion.Objetivo!.RecibirDanio((int)Math.Round(accion.Valor * contexto.Bloqueo));
-            UltimoResultado = unidad.Nombre + " hizo " + real + " de daño a " + accion.Objetivo.Nombre + (contexto.Bloqueo < 1 ? " (bloqueado)" : "");
+            // [PATRÓN CHAIN OF RESPONSIBILITY] el bloqueo del jugador viaja con el golpe y lo aplica el eslabón Bloqueo.
+            int real = Golpear(accion.Objetivo!, accion.Valor, contexto.Bloqueo);
+            UltimoResultado = Esquivo(accion.Objetivo) is { Length: > 0 } e ? e
+                : unidad.Nombre + " hizo " + real + " de daño a " + accion.Objetivo.Nombre + (contexto.Bloqueo < 1 ? " (bloqueado)" : "");
         }
         Registrar("Actúa: " + UltimoResultado);
     }
@@ -408,7 +435,7 @@ public sealed class BatallaOrbital
     private BatallaOrbital(Contexto contexto) { Contexto = contexto; }
 
     // Arma la batalla usando los pilotos de la flota del nivel 1 cuando existen.
-    public static BatallaOrbital Crear(Progreso? progreso = null, int? semilla = null, bool eventos = true)
+    public static BatallaOrbital Crear(Progreso? progreso = null, int? semilla = null, bool eventos = true, bool modulosDefensivos = false)
     {
         string PilotoDe(string tipo) =>
             progreso?.Flota.FirstOrDefault(n => n.Tipo == tipo && n.Piloto != null)?.Piloto!.Nombre ?? "Piloto " + tipo;
@@ -420,6 +447,12 @@ public sealed class BatallaOrbital
         var francotirador = new UnidadBatalla { Nombre = "Exploradora", Rol = "Francotirador", Piloto = PilotoDe("Exploradora"), VidaMax = 70, Vida = 70 };
         var medico = new UnidadBatalla { Nombre = "Nave de Carga", Rol = "Médico", Piloto = PilotoDe("Carga"), VidaMax = 90, Vida = 90 };
         var comandante = new UnidadBatalla { Nombre = "Nave Insignia", Rol = "Comandante", Piloto = progreso?.Ingeniero?.Nombre ?? "Michi-07", VidaMax = 80, Vida = 80 };
+        // [PATRÓN CHAIN OF RESPONSIBILITY] Módulos de las eslabones Armadura y Esquiva (el juego los activa; las verificaciones antiguas no).
+        if (modulosDefensivos)
+        {
+            soldado.ReduccionArmadura = 6; comandante.ReduccionArmadura = 4;
+            francotirador.ProbEsquiva = .25; medico.ReduccionArmadura = 3;
+        }
         c.Aliados.AddRange(new[] { soldado, francotirador, medico, comandante });
         c.NaveCarga = medico;
 
@@ -438,6 +471,32 @@ public sealed class BatallaOrbital
 
         b.Historial.Add("[R1] Comienza la escolta orbital. ¡Protegé la Nave de Carga!");
         return b;
+    }
+
+    // [PATRÓN COMMAND · Memento] Foto del estado de la batalla: la usan los comandos para deshacer y rehacer un turno aliado.
+    public EstadoBatalla Capturar()
+    {
+        var e = new EstadoBatalla
+        {
+            Ronda = Contexto.Ronda, IndiceAliado = indiceAliado, FaseEnemiga = FaseEnemiga, Cambios = CambiosDeEstrategia,
+            Capsula = CapsulaDisponible, Resultado = UltimoResultado, Lineas = Historial.ToList(),
+            Cargado = TurnosAliados.OfType<TurnoFrancotirador>().FirstOrDefault()?.Cargado ?? true
+        };
+        foreach (var u in Contexto.Aliados.Concat(Contexto.Enemigos)) e.Unidades.Add((u, u.Vida, u.Escudo));
+        foreach (var en in Contexto.Enemigos) e.Enemigos[en] = (en.Estrategia, en.Furiosa);
+        return e;
+    }
+
+    public void Restaurar(EstadoBatalla e)
+    {
+        foreach (var (u, vida, escudo) in e.Unidades) { u.Vida = vida; u.Escudo = escudo; }
+        foreach (var (en, v) in e.Enemigos) { en.Estrategia = v.Ia; en.Furiosa = v.Furiosa; }
+        TurnosAliados.OfType<TurnoFrancotirador>().FirstOrDefault()?.RestaurarCarga(e.Cargado);
+        Contexto.Ronda = e.Ronda; indiceAliado = e.IndiceAliado; CambiosDeEstrategia = e.Cambios; UltimoResultado = e.Resultado;
+        colaEnemiga.Clear(); FaseEnemiga = false;
+        if (e.FaseEnemiga) PrepararFaseEnemiga();      // reconstruye la cola de mutantes
+        CapsulaDisponible = e.Capsula;
+        Historial.Clear(); Historial.AddRange(e.Lineas);
     }
 
     public IEnumerable<UnidadBatalla> ObjetivosValidos() =>
@@ -558,8 +617,9 @@ public sealed class BatallaOrbital
     public void ImpactarMeteorito(float bloqueo = 1f)
     {
         if (MeteoritosPendientes <= 0 || MeteoritoApunta == null) return;
-        int real = MeteoritoApunta.RecibirDanio((int)Math.Round(DanioMeteorito * bloqueo));
-        UltimoResultado = "Meteorito: " + real + " de daño a " + MeteoritoApunta.Nombre + (bloqueo < 1 ? " (bloqueado)" : "");
+        var impacto = MeteoritoApunta.RecibirAtaque(new Danio(DanioMeteorito, "Meteorito") { FactorBloqueo = bloqueo, Azar = Contexto.Azar });
+        int real = impacto.LlegoALaVida;
+        UltimoResultado = "Meteorito: " + (impacto.Esquivado ? MeteoritoApunta.Nombre + " lo esquivó" : real + " de daño a " + MeteoritoApunta.Nombre) + (bloqueo < 1 ? " (bloqueado)" : "");
         Historial.Add("[R" + Ronda + "] Evento · " + UltimoResultado);
         MeteoritosPendientes--;
         if (Terminada) MeteoritosPendientes = 0;
@@ -606,4 +666,19 @@ public sealed class BatallaOrbital
     {
         while (indiceAliado < TurnosAliados.Count && !TurnosAliados[indiceAliado].Unidad.Viva) indiceAliado++;
     }
+}
+
+// [PATRÓN COMMAND · Memento] Datos guardados por BatallaOrbital.Capturar().
+public sealed class EstadoBatalla
+{
+    internal List<(UnidadBatalla Unidad, int Vida, bool Escudo)> Unidades { get; } = new();
+    internal Dictionary<Enemigo, (IEstrategiaIA Ia, bool Furiosa)> Enemigos { get; } = new();
+    internal List<string> Lineas { get; init; } = new();
+    internal int Ronda { get; init; }
+    internal int IndiceAliado { get; init; }
+    internal int Cambios { get; init; }
+    internal bool FaseEnemiga { get; init; }
+    internal bool Capsula { get; init; }
+    internal bool Cargado { get; init; }
+    internal string Resultado { get; init; } = "";
 }
