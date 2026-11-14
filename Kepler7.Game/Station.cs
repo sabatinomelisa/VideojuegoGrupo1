@@ -102,7 +102,12 @@ public sealed partial class GameForm
                 Ellipse(g, door.Item3, door.Item1 + 64, 253, 8, 8);
             }
             TextAt(g,"↑ CONTACTO CON LA TIERRA",460,355,16,Blue,true);
-            TextAt(g, "← CLONACIÓN", 365, 390, 17, Mint, true); TextAt(g, "CONSTRUCCIÓN →", 665, 390, 17, Gold, true);
+
+            TextAt(g, "← CLONACIÓN", 365, 390, 17, Mint, true); 
+            TextAt(g, "CONSTRUCCIÓN →", 665, 390, 17, Gold, true);
+            //Agrego dos accesos en el pasillo central de la estacion
+            Button(g, "CONTROL CENTRAL", 330, 500, 240, 55,() => Change(Pantalla.ControlCentral), true);
+            Button(g, "BÓVEDA DE DATOS", 630, 500, 240, 55,() => Change(Pantalla.Boveda), true);
         }
         else
         {

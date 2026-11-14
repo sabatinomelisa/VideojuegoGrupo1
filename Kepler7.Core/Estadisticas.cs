@@ -26,7 +26,10 @@ public static class Logros
         new Insignia("Prototype","Más bigotes a bordo","Cloná al Ingeniero Jefe.",p.PrototypeDominado),
         new Insignia("Flyweight","Cada michi cuenta","Recuperá el censo de la estación.",p.FlyweightDominado),
         new Insignia("Bridge","Una voz entre las estrellas","Restablecé el contacto y enviá un informe de misión a la Tierra.",p.BridgeDominado),
+        new Insignia("Facade", "Comandante de la estación", "Activá correctamente los sistemas desde el control central.", p.FacadeDominado),
+        new Insignia("Proxy", "Acceso autorizado", "Ingresá a la bóveda con un rol autorizado.", p.ProxyDominado),
         new Insignia("Strategy","Mente hackeada","Cambiá la IA de una nave mutante con el Comandante.",p.StrategyDominado),
         new Insignia("Template Method","Escolta completada","Ganá la batalla del nivel 2 turno a turno.",p.TemplateMethodDominado)
+
     };
 }

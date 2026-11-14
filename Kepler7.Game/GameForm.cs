@@ -7,8 +7,39 @@ namespace Kepler7.Game;
 
 public sealed partial class GameForm : Form
 {
-    private enum Pantalla { Inicio, Pasillo, Reparacion, Laboratorio, Hangar, Final, Estacion, SalaLab, SalaHangar, Abordaje, Biblioteca, Poblacion, Logros, SalaComunicaciones, Comunicaciones, Batalla }
+    private enum Pantalla
+    {
+        Inicio,
+        Pasillo,
+        Reparacion,
+        Laboratorio,
+        Hangar,
+        Final,
+        Estacion,
+        SalaLab,
+        SalaHangar,
+        Abordaje,
+        Biblioteca,
+        Poblacion,
+        Logros,
+        SalaComunicaciones,
+        Comunicaciones,
+        Batalla,
+        ControlCentral,
+        Boveda
+    }
     private Pantalla screen;
+    // Facade: coordina los subsistemas de la estación. Crear intancia.
+    private readonly Kepler7.Core.ControlCentral facadeControl = new Kepler7.Core.ControlCentral();
+    // Guarda los resultados de las operaciones para mostrarlos en pantalla.
+    private System.Collections.Generic.List<string> resultadoControl = new();
+    // Proxy: controla los permisos de acceso a la bóveda.
+    private Kepler7.Core.IBoveda.RolBoveda rolSeleccionado = Kepler7.Core.IBoveda.RolBoveda.Tripulante;
+    private Kepler7.Core.ProxyBoveda proxyBoveda = new Kepler7.Core.ProxyBoveda(Kepler7.Core.IBoveda.RolBoveda.Tripulante);
+
+    // Resultado de la última operación realizada.
+    private string resultadoBoveda = "Seleccioná un documento para comenzar.";
+
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 16 };
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private double previous;
@@ -181,6 +212,8 @@ public sealed partial class GameForm : Form
             case Pantalla.Comunicaciones: DrawCommunications(g); break;
             case Pantalla.Batalla: DrawBattle(g); break;
             case Pantalla.Estacion: case Pantalla.SalaLab: case Pantalla.SalaHangar: DrawStation(g); break;
+            case Pantalla.ControlCentral: DrawControlCentral(g); break;
+            case Pantalla.Boveda: DrawBoveda(g); break;
         }
         if (noticeTime > 0 && screen != Pantalla.Pasillo)
         { Box(g, 190, 698, 820, 43, Line, 10); TextAt(g, notice, 210, 709, 14, Gold); }
@@ -188,6 +221,129 @@ public sealed partial class GameForm : Form
         if (activeGuide != null) DrawRoomGuide(g);
         DrawRescueVictory(g);
         DrawDialogs(g);
+    }
+    private void DrawControlCentral(Graphics g)
+    {
+        Header(g, "ESTACIÓN", "CONTROL CENTRAL");
+
+        TextAt(g, "Administración de los sistemas de Kepler-7", 80, 155, 18, White);
+
+        // Botón para iniciar todos los sistemas.
+        Button(g, "INICIAR TURNO", 80, 230, 220, 55, () =>
+        {
+            resultadoControl = facadeControl.IniciarTurno();
+            if (resultadoControl.Count > 0 && progress.RegistrarFacade())
+            {
+                Save();
+                MessageBox.Show("¡Logro desbloqueado: Comandante de la estación! +150 XP");
+            }
+            Invalidate();
+        }, true);
+
+        // Botón para activar el protocolo de emergencia.
+        Button(g, "EMERGENCIA", 350, 230, 220, 55, () =>
+        {
+            resultadoControl = facadeControl.EntrarEnEmergencia();
+            Invalidate();
+        }, true);
+
+        // Botón para apagar la estación.
+        Button(g, "APAGAR ESTACIÓN", 620, 230, 220, 55, () =>
+        {
+            resultadoControl = facadeControl.ApagarEstacion();
+            Invalidate();
+        }, true);
+
+        // Mostrar los resultados de la operación.
+        TextAt(g, "ESTADO DE LOS SISTEMAS:",
+            80, 340, 17, Mint, true);
+
+        int posicionY = 385;
+
+        foreach (string resultado in resultadoControl)
+        {
+            TextAt(g, "• " + resultado,
+                90, posicionY, 15, White);
+
+            posicionY += 35;
+        }
+
+        Button(g, "VOLVER", 80, 650, 180, 55,() => Change(Pantalla.Estacion));
+    }
+
+    private void DrawBoveda(Graphics g)
+    {
+        Header(g, "ESTACIÓN", "BÓVEDA DE DATOS");
+
+        TextAt(g, "Seleccioná el perfil de acceso:", 80, 145, 18, White);
+
+        // Selección de perfil
+        Button(g, "TRIPULANTE", 80, 195, 220, 50, () =>
+        {
+            rolSeleccionado = Kepler7.Core.IBoveda.RolBoveda.Tripulante;
+            proxyBoveda = new Kepler7.Core.ProxyBoveda(rolSeleccionado);
+            resultadoBoveda = "Perfil seleccionado: Tripulante.";
+            Invalidate();
+        }, true);
+
+        Button(g, "CAPITÁN", 350, 195, 220, 50, () =>
+        {
+            rolSeleccionado = Kepler7.Core.IBoveda.RolBoveda.Capitan;
+            proxyBoveda = new Kepler7.Core.ProxyBoveda(rolSeleccionado);
+            resultadoBoveda = "Perfil seleccionado: Capitán.";
+            Invalidate();
+        }, true);
+
+        Button(g, "SEGURIDAD", 620, 195, 220, 50, () =>
+        {
+            rolSeleccionado = Kepler7.Core.IBoveda.RolBoveda.OficialSeguridad;
+            proxyBoveda = new Kepler7.Core.ProxyBoveda(rolSeleccionado);
+            resultadoBoveda = "Perfil seleccionado: Oficial de Seguridad.";
+            Invalidate();
+        }, true);
+
+        TextAt(g, "DOCUMENTO: INFORME DE MISIÓN", 80, 285, 17, Mint, true);
+
+        // Leer documento
+        Button(g, "LEER DOCUMENTO", 80, 335, 220, 50, () =>
+        {
+            resultadoBoveda = proxyBoveda.LeerArchivo("informe-mision");
+
+            if (rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.Capitan ||
+                rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.OficialSeguridad)
+            {
+                if (progress.RegistrarProxy())
+                {
+                    Save();
+                    MessageBox.Show("¡Logro desbloqueado: Acceso autorizado! +150 XP");
+                }
+            }
+
+            Invalidate();
+        }, true);
+
+        // Modificar documento
+        Button(g, "MODIFICAR DOCUMENTO", 350, 335, 220, 50, () =>
+        {
+            resultadoBoveda = proxyBoveda.EscribirArchivo(
+                "informe-mision",
+                "INFORME DE MISIÓN\nEstación Kepler-7.\nEstado: actualizado por el usuario."
+            );
+            Invalidate();
+        }, true);
+
+        // Consultar historial
+        Button(g, "VER INTENTOS DENEGADOS", 620, 335, 240, 50, () =>
+        {
+            resultadoBoveda = proxyBoveda.ConsultarIntentosDenegados();
+            Invalidate();
+        }, true);
+
+        TextAt(g, "RESULTADO DE LA OPERACIÓN:", 80, 425, 17, Mint, true);
+
+        Wrap(g, resultadoBoveda, 80, 465, 1000, 145, 16, White);
+
+        Button(g, "VOLVER", 80, 650, 180, 55, () => Change(Pantalla.Estacion));
     }
     private void Header(Graphics g, string stage, string title)
     {
