@@ -31,7 +31,8 @@ public static class Logros
         new Insignia("State", "Siete vidas", "Sobreviví a un cambio de estado en el pasillo de rescate.", p.StateDominado),
         new Insignia("Visitor", "Inventario al día", "Analizá el inventario con uno de sus visitantes.", p.VisitorDominado),
         new Insignia("Strategy","Mente hackeada","Cambiá la IA de una nave mutante con el Comandante.",p.StrategyDominado),
-        new Insignia("Template Method","Escolta completada","Ganá la batalla del nivel 2 turno a turno.",p.TemplateMethodDominado)
-
+        new Insignia("Template Method","Escolta completada","Ganá la batalla del nivel 2 turno a turno.",p.TemplateMethodDominado),
+        new Insignia("Chain of Responsibility","Defensa en capas","Reordená la cadena de defensas de una nave en plena batalla.",p.ChainDominado),
+        new Insignia("Command","Rebobinar el turno","Deshacé una acción de tu flota durante la batalla.",p.CommandDominado)
     };
 }

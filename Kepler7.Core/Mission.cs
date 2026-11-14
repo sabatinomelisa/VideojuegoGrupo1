@@ -154,7 +154,9 @@ public sealed class Progreso
     [System.Text.Json.Serialization.JsonIgnore]
     public List<Tripulante> Habitantes => habitantes ??= BibliotecaTripulantes.CrearHabitantes();
     public bool FlyweightDominado { get; set; }
-    public bool BridgeDominado {get;set;}
+
+
+    public bool BridgeDominado { get; set; }
 
     // Logro del patrón Facade
     public bool FacadeDominado { get; set; }
@@ -212,6 +214,22 @@ public sealed class Progreso
     public bool StrategyDominado { get; set; }
     public bool TemplateMethodDominado { get; set; }
     public MedallaBatalla? MedallaBatalla { get; set; }
+
+    // Chain of Responsibility y Command: insignias del nivel 2 (100 XP cada una, una sola vez).
+    public bool ChainDominado { get; set; }
+    public bool CommandDominado { get; set; }
+    // Primera vez que el jugador agrega, quita o reordena un eslabón de la cadena de defensas.
+    public bool RegistrarCadena()
+    {
+        if (ChainDominado) return false;
+        ChainDominado = true; XP += 100; return true;
+    }
+    // Primera vez que el jugador deshace una acción de la flota.
+    public bool RegistrarDeshacer()
+    {
+        if (CommandDominado) return false;
+        CommandDominado = true; XP += 100; return true;
+    }
     // Insignia Strategy: la primera vez que se hackea la IA de un mutante.
     public bool RegistrarHackeo()
     {
@@ -225,7 +243,9 @@ public sealed class Progreso
         if (TemplateMethodDominado) return false;
         TemplateMethodDominado = true; XP += 200; return true;
     }
-    public List<Transmision> Transmisiones {get;set;}=new();
+
+    public List<Transmision> Transmisiones { get; set; } = new();
+
     public List<ResumenOperacion> Operaciones {get;set;}=new();
     public void RegistrarOperacion(ResumenOperacion resumen)
     {

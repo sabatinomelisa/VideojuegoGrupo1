@@ -6,90 +6,34 @@ public sealed partial class GameForm
     private Pantalla achievementsReturn;
     private int operationIndex;
     private void OpenAchievements() { achievementsReturn = screen; operationIndex = Math.Max(0, progress.Operaciones.Count - 1); Change(Pantalla.Logros); }
-
     private void DrawAchievements(Graphics g)
     {
         Header(g, "Bitácora de la estación", "Tus hazañas dejan huella");
-
-        Button(g, "← Volver", 40, 125, 170, 40,
-            () => Change(achievementsReturn));
-
+        Button(g, "← Volver", 40, 125, 170, 40, () => Change(achievementsReturn));
         var logros = Logros.Obtener(progress);
-
-        TextAt(g,
-            logros.Count(l => l.Obtenida) + " / " + logros.Length +
-            " insignias disponibles · 12 patrones en la misión completa",
-            240, 137, 16, Gold, true);
-
-        // Insignias en dos columnas
+        TextAt(g, logros.Count(l => l.Obtenida) + " / " + logros.Length + " insignias disponibles · 12 patrones en la misión completa", 240, 137, 16, Gold, true);
         for (int i = 0; i < logros.Length; i++)
         {
-            var l = logros[i];
-
-            float x = 40 + i % 2 * 570;
-            float y = 180 + i / 2 * 88;
-
-            Box(g, x, y, 550, 80, PanelColor, 12);
-
-            Paw(g, x + 38, y + 32, .45f,
-                l.Obtenida ? Gold : Muted);
-
-            TextAt(g, l.Nombre, x + 75, y + 8,
-                18, l.Obtenida ? White : Muted, true);
-
-            TextAt(g,
-                l.Patron + " · " +
-                (l.Obtenida ? "CONSEGUIDA" : "POR DESCUBRIR"),
-                x + 75, y + 33, 12,
-                l.Obtenida ? Mint : Gold, true);
-
-            Wrap(g, l.Objetivo, x + 75, y + 52,
-                455, 25, 12, White);
+            
+            var l = logros[i]; float x = 40 + i % 2 * 570, y = 172 + i / 2 * 100;
+            Box(g, x, y, 550, 92, PanelColor, 12); Paw(g, x + 44, y + 38, .55f, l.Obtenida ? Gold : Muted);
+            TextAt(g, l.Nombre, x + 84, y + 8, 21, l.Obtenida ? White : Muted, true);
+            TextAt(g, l.Patron + " · " + (l.Obtenida ? "CONSEGUIDA" : "POR DESCUBRIR"), x + 84, y + 38, 13, l.Obtenida ? Mint : Gold, true);
+            Wrap(g, l.Objetivo, x + 84, y + 57, 450, 34, 14, White);
         }
-
-        // Últimas operaciones debajo de las insignias
-        float operacionesY = 180 +
-            ((logros.Length + 1) / 2) * 88 + 15;
-
-        Box(g, 40, operacionesY, 1120, 100, PanelColor, 12);
-
-        TextAt(g, "ÚLTIMAS OPERACIONES",
-            60, operacionesY + 12, 13, Mint, true);
-
+        TextAt(g, "Próximos sistemas: Facade · Proxy · Visitor · State", 40, 578, 16, Muted);
+        Box(g, 40, 612, 1120, 102, PanelColor, 12);
+        TextAt(g, "ÚLTIMAS OPERACIONES", 60, 627, 13, Mint, true);
         if (progress.Operaciones.Count > 0)
         {
-            operationIndex = Math.Clamp(
-                operationIndex, 0, progress.Operaciones.Count - 1);
-
-            Button(g, "‹", 60, operacionesY + 45, 42, 35,
-                () => operationIndex--,
-                false, operationIndex > 0);
-
-            TextAt(g,
-                (operationIndex + 1) + " / " +
-                progress.Operaciones.Count + " · " +
-                ShortLabel(
-                    progress.Operaciones[operationIndex].Titulo, 53),
-                120, operacionesY + 54, 16, White);
-
-            Button(g, "›", 808, operacionesY + 45, 42, 35,
-                () => operationIndex++,
-                false,
-                operationIndex < progress.Operaciones.Count - 1);
-
-            Button(g, "Ver resumen",
-                879, operacionesY + 41, 256, 42,
-                () => ShowSummary(
-                    progress.Operaciones[operationIndex], false),
-                true);
+            operationIndex = Math.Clamp(operationIndex, 0, progress.Operaciones.Count - 1);
+            Button(g, "‹", 60, 657, 42, 35, () => operationIndex--, false, operationIndex > 0);
+            TextAt(g, (operationIndex + 1) + " / " + progress.Operaciones.Count + " · " + ShortLabel(progress.Operaciones[operationIndex].Titulo, 53), 120, 666, 16, White);
+            Button(g, "›", 808, 657, 42, 35, () => operationIndex++, false, operationIndex < progress.Operaciones.Count - 1);
+            Button(g, "Ver resumen", 879, 653, 256, 42, () => ShowSummary(progress.Operaciones[operationIndex], false), true);
         }
-        else
-        {
-            TextAt(g, "Tus próximos lotes aparecerán acá.",
-                60, operacionesY + 55, 17, Muted);
-        }
+        else TextAt(g, "Tus próximos lotes aparecerán acá.", 60, 670, 17, Muted);
     }
-
     private void DrawRoomIndicators(Graphics g, bool lab)
     {
        

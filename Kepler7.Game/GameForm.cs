@@ -112,6 +112,9 @@ public sealed partial class GameForm : Form
     {
         if (DialogOpen) { HandleDialogKey(e); return; }
         if (e.KeyCode == Keys.Escape && screen == Pantalla.Logros) { Change(achievementsReturn); return; }
+        if (screen == Pantalla.Batalla && battleDefensePanel && e.KeyCode == Keys.Escape) { battleDefensePanel = false; e.SuppressKeyPress = true; Invalidate(); return; }
+        if (screen == Pantalla.Batalla && !battleDefensePanel && e.Control && e.KeyCode == Keys.Z) { UndoBattle(); e.SuppressKeyPress = true; return; }
+        if (screen == Pantalla.Batalla && !battleDefensePanel && e.Control && e.KeyCode == Keys.Y) { RedoBattle(); e.SuppressKeyPress = true; return; }
         if (e.KeyCode == Keys.Escape && screen == Pantalla.Inventario) { VolverDelInventario(); return; }
         if (rescueVictory) { if (e.KeyCode is Keys.Enter or Keys.Escape) CloseRescueVictory(); e.SuppressKeyPress = true; return; }
         if (e.KeyCode == Keys.M && !naming && !batchEditing) { musicMuted = !musicMuted; SyncEmergencyAudio(); e.SuppressKeyPress = true; return; }
@@ -236,11 +239,6 @@ public sealed partial class GameForm : Form
         Button(g, "INICIAR TURNO", 80, 230, 220, 55, () =>
         {
             resultadoControl = facadeControl.IniciarTurno();
-            if (resultadoControl.Count > 0 && progress.RegistrarFacade())
-            {
-                Save();
-                MessageBox.Show("¡Logro desbloqueado: Comandante de la estación! +150 XP");
-            }
             Invalidate();
         }, true);
 
@@ -312,17 +310,6 @@ public sealed partial class GameForm : Form
         Button(g, "LEER DOCUMENTO", 80, 335, 220, 50, () =>
         {
             resultadoBoveda = proxyBoveda.LeerArchivo("informe-mision");
-
-            if (rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.Capitan ||
-                rolSeleccionado == Kepler7.Core.IBoveda.RolBoveda.OficialSeguridad)
-            {
-                if (progress.RegistrarProxy())
-                {
-                    Save();
-                    MessageBox.Show("¡Logro desbloqueado: Acceso autorizado! +150 XP");
-                }
-            }
-
             Invalidate();
         }, true);
 
