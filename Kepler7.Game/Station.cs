@@ -108,6 +108,7 @@ public sealed partial class GameForm
             //Agrego dos accesos en el pasillo central de la estacion
             Button(g, "CONTROL CENTRAL", 330, 500, 240, 55,() => Change(Pantalla.ControlCentral), true);
             Button(g, "BÓVEDA DE DATOS", 630, 500, 240, 55,() => Change(Pantalla.Boveda), true);
+            Button(g, "INVENTARIO", 480, 570, 240, 55, AbrirInventario, true);
         }
         else
         {

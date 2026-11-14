@@ -33,6 +33,7 @@ public sealed class Pasillo
     public const float Largo = 2700;
     public Vector2 Jugador { get; private set; } = new(120, 285);
     public int Vida { get; private set; } = 100;
+    public Personaje Gato { get; } = new();
     public int Bajas { get; private set; }
     public int Total => 15;
     public bool Derrota => Vida <= 0;
@@ -43,6 +44,7 @@ public sealed class Pasillo
     public List<Disparo> Disparos { get; } = new();
     public List<Particula> Particulas { get; } = new();
     public List<Vector2> Botiquines { get; } = new() { new(910, 430), new(1730, 125) };
+    public List<Vector2> Furias { get; } = new() { new(1300, 470), new(2000, 300) }; // power-ups Berserk
     public Caja[] Obstaculos { get; } = { new(480, 55, 85, 155), new(960, 365, 90, 150), new(1640, 45, 85, 150), new(2180, 360, 85, 160) };
     
     public Caja[] Capsulas { get; } = Enumerable.Range(0,6).Select(i => new Caja(240+i*420-44.8f,131.76f,89.6f,105.6f)).ToArray();
@@ -65,13 +67,14 @@ public sealed class Pasillo
         dt = Math.Clamp(dt, 0, .05f); Tiempo += dt;
         Invulnerable = Math.Max(0, Invulnerable - dt); recarga -= dt;
         if (movimiento.LengthSquared() > 1) movimiento = Vector2.Normalize(movimiento);
-        Jugador = Mover(Jugador, movimiento * (230 * dt), 21);
+        Vida = Math.Max(0, Vida - Gato.Actualizar(dt));                 
+        Jugador = Mover(Jugador, movimiento * (Gato.Mover(230) * dt), 21);
         var direccion = apuntar - Jugador;
-        if (disparar && recarga <= 0 && direccion.LengthSquared() > .01f)
+        if (disparar && recarga <= 0 && direccion.LengthSquared() > .01f && Gato.Atacar(out float espera))
         {
             direccion = Vector2.Normalize(direccion);
             Disparos.Add(new Disparo { Posicion = Jugador + direccion * 31, Velocidad = direccion * 780 });
-            recarga = .18f;
+            recarga = espera;
         }
         foreach (var m in Mutantes)
         {
@@ -88,7 +91,9 @@ public sealed class Pasillo
             }
             if (Vector2.Distance(m.Posicion, Jugador) < 43 && Invulnerable <= 0)
             {
-                Vida = Math.Max(0, Vida - 20); Invulnerable = 1.15f; Emitir(Jugador, true);
+                Vida = Math.Max(0, Vida - Gato.RecibirDanio(20)); Invulnerable = 1.15f; Emitir(Jugador, true); // [STATE]
+                if (m.VarianteVisual == 1) Gato.CambiarEstado(new Envenenado());   // mutante venenoso
+                else if (m.VarianteVisual == 2) Gato.CambiarEstado(new Aturdido()); // mutante que aturde
                 var alejamiento = d.LengthSquared() > .01f ? -Vector2.Normalize(d) : Vector2.UnitX;
                 m.Posicion = Mover(m.Posicion, alejamiento * 50, 20);
             }
@@ -110,6 +115,9 @@ public sealed class Pasillo
         for (int i = Botiquines.Count - 1; i >= 0; i--)
             if (Vida < 100 && Vector2.Distance(Botiquines[i], Jugador) < 36)
             { Vida = Math.Min(100, Vida + 30); Botiquines.RemoveAt(i); }
+        for (int i = Furias.Count - 1; i >= 0; i--)          // tocar un power-up activa Berserk
+            if (Vector2.Distance(Furias[i], Jugador) < 36)
+            { Gato.CambiarEstado(new Berserk()); Furias.RemoveAt(i); }
         for (int i = Particulas.Count - 1; i >= 0; i--)
         {
             var p = Particulas[i]; p.Posicion += p.Velocidad * dt; p.Tiempo -= dt;
@@ -146,7 +154,61 @@ public sealed class Progreso
     [System.Text.Json.Serialization.JsonIgnore]
     public List<Tripulante> Habitantes => habitantes ??= BibliotecaTripulantes.CrearHabitantes();
     public bool FlyweightDominado { get; set; }
-    public bool BridgeDominado {get;set;}
+
+
+    public bool BridgeDominado { get; set; }
+
+    // Logro del patrón Facade
+    public bool FacadeDominado { get; set; }
+
+    // Logro del patrón Proxy
+    public bool ProxyDominado { get; set; }
+
+    // Logro Facade: controlar los sistemas de la estación
+    public bool RegistrarFacade()
+    {
+        if (FacadeDominado) return false;
+
+        FacadeDominado = true;
+        XP += 150;
+        return true;
+    }
+
+    // Logro Proxy: acceder a la bóveda con autorización
+    public bool RegistrarProxy()
+    {
+        if (ProxyDominado) return false;
+
+        ProxyDominado = true;
+        XP += 150;
+        return true;
+    }
+
+    // Logro del patrón State
+    public bool StateDominado { get; set; }
+
+    // Logro del patrón Visitor
+    public bool VisitorDominado { get; set; }
+
+    // Logro State: el gato cambia de estado por primera vez
+    public bool RegistrarState()
+    {
+        if (StateDominado) return false;
+
+        StateDominado = true;
+        XP += 100;
+        return true;
+    }
+
+    // Logro Visitor: usar un analizador del inventario por primera vez
+    public bool RegistrarVisitor()
+    {
+        if (VisitorDominado) return false;
+
+        VisitorDominado = true;
+        XP += 100;
+        return true;
+    }
 
     // Nivel 2  Escolta orbital: insignias de Strategy y Template Method, y mejor medalla.
     public bool StrategyDominado { get; set; }
@@ -181,7 +243,9 @@ public sealed class Progreso
         if (TemplateMethodDominado) return false;
         TemplateMethodDominado = true; XP += 200; return true;
     }
-    public List<Transmision> Transmisiones {get;set;}=new();
+
+    public List<Transmision> Transmisiones { get; set; } = new();
+
     public List<ResumenOperacion> Operaciones {get;set;}=new();
     public void RegistrarOperacion(ResumenOperacion resumen)
     {
