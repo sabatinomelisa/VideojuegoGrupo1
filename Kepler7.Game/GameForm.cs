@@ -26,7 +26,8 @@ public sealed partial class GameForm : Form
         Comunicaciones,
         Batalla,
         ControlCentral,
-        Boveda
+        Boveda,
+        Inventario
     }
     private Pantalla screen;
     // Facade: coordina los subsistemas de la estación. Crear intancia.
@@ -111,6 +112,7 @@ public sealed partial class GameForm : Form
     {
         if (DialogOpen) { HandleDialogKey(e); return; }
         if (e.KeyCode == Keys.Escape && screen == Pantalla.Logros) { Change(achievementsReturn); return; }
+        if (e.KeyCode == Keys.Escape && screen == Pantalla.Inventario) { VolverDelInventario(); return; }
         if (rescueVictory) { if (e.KeyCode is Keys.Enter or Keys.Escape) CloseRescueVictory(); e.SuppressKeyPress = true; return; }
         if (e.KeyCode == Keys.M && !naming && !batchEditing) { musicMuted = !musicMuted; SyncEmergencyAudio(); e.SuppressKeyPress = true; return; }
         if (activeGuide != null) { if (e.KeyCode is Keys.Enter or Keys.Escape) CloseRoomGuide(); e.Handled = true; e.SuppressKeyPress = true; return; }
@@ -160,6 +162,7 @@ public sealed partial class GameForm : Form
             float y = (keys.Contains(Keys.S) || keys.Contains(Keys.Down) ? 1 : 0) - (keys.Contains(Keys.W) || keys.Contains(Keys.Up) ? 1 : 0);
             if (x != 0 || y != 0) playerStride += dt * 12;
             corridor.Tick(dt, new(x, y), new(mouse.X - 40 + Camera, mouse.Y - 145), firing || keys.Contains(Keys.Space));
+            if (!(corridor.Gato.Estado is Normal) && progress.RegistrarState()) Say("¡Insignia State conseguida! +100 XP");
             if (corridor.PuedeReparar && (x > 0 || x == 0 && y != 0) && corridor.Jugador.X >= 2490 && corridor.Jugador.Y >= 155 && corridor.Jugador.Y <= 405) EnterRecoveredLab();
         }
         if (animation > 0)
@@ -214,6 +217,7 @@ public sealed partial class GameForm : Form
             case Pantalla.Estacion: case Pantalla.SalaLab: case Pantalla.SalaHangar: DrawStation(g); break;
             case Pantalla.ControlCentral: DrawControlCentral(g); break;
             case Pantalla.Boveda: DrawBoveda(g); break;
+            case Pantalla.Inventario: DrawInventario(g); break;
         }
         if (noticeTime > 0 && screen != Pantalla.Pasillo)
         { Box(g, 190, 698, 820, 43, Line, 10); TextAt(g, notice, 210, 709, 14, Gold); }

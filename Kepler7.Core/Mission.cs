@@ -182,6 +182,32 @@ public sealed class Progreso
         return true;
     }
 
+    // Logro del patrón State
+    public bool StateDominado { get; set; }
+
+    // Logro del patrón Visitor
+    public bool VisitorDominado { get; set; }
+
+    // Logro State: el gato cambia de estado por primera vez
+    public bool RegistrarState()
+    {
+        if (StateDominado) return false;
+
+        StateDominado = true;
+        XP += 100;
+        return true;
+    }
+
+    // Logro Visitor: usar un analizador del inventario por primera vez
+    public bool RegistrarVisitor()
+    {
+        if (VisitorDominado) return false;
+
+        VisitorDominado = true;
+        XP += 100;
+        return true;
+    }
+
     // Nivel 2  Escolta orbital: insignias de Strategy y Template Method, y mejor medalla.
     public bool StrategyDominado { get; set; }
     public bool TemplateMethodDominado { get; set; }
