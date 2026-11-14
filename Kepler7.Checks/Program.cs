@@ -1,4 +1,4 @@
-using Kepler7.Core;
+﻿using Kepler7.Core;
 using System.Numerics;
 int assertions = 0;
 void Check(bool condition, string label) { if (!condition) throw new Exception("FALLO: " + label); assertions++; Console.WriteLine("OK " + label); }
@@ -370,6 +370,7 @@ Check(boarding30.AsignarLote(30,"Exploradora","Atigrado").Count==30,"Lote respet
 Check(boarding30.AsignarLote(30,"Combate").Count==0 && boarding30.Flota.Select(n=>n.Piloto!.Identificador).Distinct().Count()==60,"Ningún piloto puede ser asignado nuevamente a otra nave");
 
 ChecksBatalla.Ejecutar(Check);   // Nivel 2  Escolta orbital (Strategy y Template Method)
+ChecksDefensaComandos.Ejecutar(Check);   // Nivel 2: Chain of Responsibility y Command
 
 Console.WriteLine("TOTAL: " + assertions + " verificaciones correctas.");
 

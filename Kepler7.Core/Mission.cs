@@ -148,36 +148,26 @@ public sealed class Progreso
     public bool FlyweightDominado { get; set; }
     public bool BridgeDominado {get;set;}
 
-    // Logro del patrón Facade
-    public bool FacadeDominado { get; set; }
-
-    // Logro del patrón Proxy
-    public bool ProxyDominado { get; set; }
-
-    // Logro Facade: controlar los sistemas de la estación
-    public bool RegistrarFacade()
-    {
-        if (FacadeDominado) return false;
-
-        FacadeDominado = true;
-        XP += 150;
-        return true;
-    }
-
-    // Logro Proxy: acceder a la bóveda con autorización
-    public bool RegistrarProxy()
-    {
-        if (ProxyDominado) return false;
-
-        ProxyDominado = true;
-        XP += 150;
-        return true;
-    }
-
     // Nivel 2  Escolta orbital: insignias de Strategy y Template Method, y mejor medalla.
     public bool StrategyDominado { get; set; }
     public bool TemplateMethodDominado { get; set; }
     public MedallaBatalla? MedallaBatalla { get; set; }
+
+    // Chain of Responsibility y Command: insignias del nivel 2 (100 XP cada una, una sola vez).
+    public bool ChainDominado { get; set; }
+    public bool CommandDominado { get; set; }
+    // Primera vez que el jugador agrega, quita o reordena un eslabón de la cadena de defensas.
+    public bool RegistrarCadena()
+    {
+        if (ChainDominado) return false;
+        ChainDominado = true; XP += 100; return true;
+    }
+    // Primera vez que el jugador deshace una acción de la flota.
+    public bool RegistrarDeshacer()
+    {
+        if (CommandDominado) return false;
+        CommandDominado = true; XP += 100; return true;
+    }
     // Insignia Strategy: la primera vez que se hackea la IA de un mutante.
     public bool RegistrarHackeo()
     {

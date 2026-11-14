@@ -1,5 +1,7 @@
 ﻿using System.Drawing.Drawing2D;
 using Kepler7.Core;
+using Kepler7.Core.Comandos;
+using Kepler7.Core.Defensa;
 using static Kepler7.Game.Art;
 namespace Kepler7.Game;
 
@@ -7,6 +9,9 @@ namespace Kepler7.Game;
 //   - STRATEGY: botones "HACKEAR IA" del Comandante (DrawBattleCommand) = opción para cambiar
 //     la estrategia durante la partida; color de la cúpula (IAColor) y líneas punteadas del
 //     radar (DrawTelegraphs) = efecto observable del cambio.
+//   - CHAIN OF RESPONSIBILITY: botón "Defensas" (DrawDefensePanel) = cadena de cada nave; todo golpe pasa
+//     por Esquiva → Bloqueo → Armadura → Escudo → Vida, y se puede reordenar en plena batalla.
+//   - COMMAND: cada turno de la flota es un comando (ExecuteAllyTurn); botones Deshacer / Rehacer (Ctrl+Z / Ctrl+Y).
 //   - TEMPLATE METHOD: la bitácora (DrawBattleLog) muestra cada etapa del turno; el botón de
 //     acción (ExecuteAllyTurn) dispara el método plantilla EjecutarTurno().
 public sealed partial class GameForm
@@ -23,6 +28,10 @@ public sealed partial class GameForm
     private Color battleBannerColor;
     private bool battleLogOpen;              
     private bool battleBriefing;             
+    private readonly GestorComandos battleCommands = new();   // [PATRÓN COMMAND] invocador
+    private bool battleDefensePanel;                         // [PATRÓN CHAIN] panel de la cadena de defensas
+    private UnidadBatalla? defenseUnit;
+    private IReadOnlyList<string>? defenseSim;
     private bool battleRewarded;             
     private string battleRewardText = "";    
 
@@ -70,7 +79,8 @@ public sealed partial class GameForm
 
     private void StartBattle()
     {
-        battle = BatallaOrbital.Crear(progress);
+        battle = BatallaOrbital.Crear(progress, modulosDefensivos: true);
+        battleCommands.Reiniciar(); battleDefensePanel = false; defenseUnit = null; defenseSim = null;
         battleTarget = null; battleHack = null; battleTurnShown = null;
         battleEffects.Clear(); battleTexts.Clear(); battleParticles.Clear(); battleHits.Clear();
         enemyDelay = 0; battleShake = 0; battleBanner = 0; battleLogOpen = false;
@@ -208,6 +218,7 @@ public sealed partial class GameForm
         var antes = BattleSnapshot();
         var herida = battle?.RecogerCapsula();
         if (herida == null) return;
+        battleCommands.Cerrar("Se recogió la cápsula");
         battleEffects.Add(new EfectoBatalla { Desde = desde, Hasta = BattlePos(herida), Color = Mint });
         BattleFeedback(antes);
         Call("¡Cápsula recuperada!", Mint);
@@ -221,7 +232,8 @@ public sealed partial class GameForm
         var actor = turno.Unidad;
         var hackeo = turno is TurnoComandante ? battleHack : null;
         var antes = BattleSnapshot();
-        battle!.JugarTurnoAliado(battleTarget, hackeo, precision);   // [PATRÓN TEMPLATE METHOD] adentro se llama a EjecutarTurno()
+        // [PATRÓN COMMAND] el turno es un comando (se puede deshacer); adentro corre [PATRÓN TEMPLATE METHOD] EjecutarTurno()
+        battleCommands.Ejecutar(ComandosBatalla.Para(battle!, battleTarget, hackeo, precision));
 
         if (turno.Objetivo != null)
         {
@@ -233,7 +245,7 @@ public sealed partial class GameForm
         BattleFeedback(antes);
 
         battleHack = null;
-        enemyDelay = 1.1f;
+        enemyDelay = battle.FaseEnemiga ? 2.4f : 1.1f;   // un respiro para poder deshacer el último turno
         if (battle.FaseEnemiga) ShowBanner("TURNO MUTANTE", Danger, 1f);
     }
 
@@ -263,6 +275,7 @@ public sealed partial class GameForm
         bool espacio = keys.Contains(Keys.Space), apretado = espacio && !spaceHeld;
         spaceHeld = espacio;
         if (battleBriefing) { if (apretado || keys.Contains(Keys.Enter)) battleBriefing = false; return; }
+        if (battleDefensePanel) return;     // mientras se arma la cadena, la batalla espera
         if (aiming) { aimClock += dt; if (apretado) StopAim(); return; }
         if (battle.CapsulaDisponible) capsuleClock += dt;
 
@@ -312,6 +325,7 @@ public sealed partial class GameForm
             if (enemyDelay > 0) return;
             chargingEnemy = battle.ProximoEnemigo;   
             chargeTime = 0; blockFactor = -1;
+            battleCommands.Cerrar("Los mutantes actuaron");   // lo que hacen los mutantes ya no se puede deshacer
             if (chargingEnemy == null) battle.EjecutarSiguienteEnemigo();
             return;
         }
@@ -362,6 +376,7 @@ public sealed partial class GameForm
         DrawBattleCommand(g);
         if (battleBanner > 0) DrawBanner(g);
         if (battleCallTime > 0) DrawCall(g);
+        if (battleDefensePanel && !battle.Terminada) { DrawDefensePanel(g); return; }
         // Mientras apuntás o bloqueás, un clic en cualquier lado cuenta como ESPACIO.
         var pantalla = new RectangleF(0, 0, 1200, 760);
         if (aiming) { buttons.Clear(); buttons.Add((pantalla, StopAim)); }
@@ -568,6 +583,10 @@ public sealed partial class GameForm
         TextAt(g, "NIVEL 2 · ESCOLTA ORBITAL", 34, 44, 11, Muted, true);
         Button(g, "Ayuda", 700, 18, 100, 36, () => battleBriefing = true);
         Button(g, "Logros", 812, 18, 100, 36, OpenAchievements);
+        bool libre = battle != null && !battle.Terminada && !battleBriefing && !aiming && chargingEnemy == null && !meteorActive && battleEffects.Count == 0;
+        Button(g, "Deshacer", 330, 18, 118, 36, UndoBattle, false, libre && battleCommands.PuedeDeshacer);
+        Button(g, "Rehacer", 456, 18, 108, 36, RedoBattle, false, libre && battleCommands.PuedeRehacer);
+        Button(g, "Defensas", 572, 18, 120, 36, OpenDefensePanel, false, libre);
         TextAt(g, progress.XP + " XP", 930, 26, 16, Gold, true);
         Button(g, "Menú", 1050, 18, 110, 36, () => { Save(); Change(Pantalla.Inicio); });
     }
@@ -893,6 +912,118 @@ public sealed partial class GameForm
     }
 
     // Cartel final de victoria o derrota.
+    // ---------- [PATRÓN COMMAND] Deshacer y rehacer turnos de la flota ----------
+
+    private bool BattleBusy => battle == null || battle.Terminada || battleBriefing || aiming || chargingEnemy != null || meteorActive || battleEffects.Count > 0;
+
+    private void UndoBattle()
+    {
+        if (BattleBusy || !battleCommands.Deshacer()) return;
+        AfterTimeTravel();
+        Call("Turno deshecho", Blue);
+        if (progress.RegistrarDeshacer()) { Save(); Call("¡Nueva insignia! +100 XP", Violeta); }
+    }
+
+    private void RedoBattle()
+    {
+        if (BattleBusy || !battleCommands.Rehacer()) return;
+        AfterTimeTravel();
+        Call("Turno rehecho", Mint);
+        if (battle!.FaseEnemiga) { enemyDelay = 2.4f; ShowBanner("TURNO MUTANTE", Danger, 1f); }
+    }
+
+    // Después de deshacer o rehacer, la interfaz vuelve a leer el turno actual y vuelve a anunciar las furias.
+    private void AfterTimeTravel()
+    {
+        furiasMostradas.RemoveWhere(e => !e.Furiosa);
+        battleTarget = null; battleTurnShown = null; battleHack = null;
+        if (!battle!.FaseEnemiga) enemyDelay = 0;
+    }
+
+    // ---------- [PATRÓN CHAIN OF RESPONSIBILITY] Panel de la cadena de defensas ----------
+
+    private void OpenDefensePanel()
+    {
+        if (battle == null) return;
+        defenseUnit ??= battle.Contexto.Aliados[0];
+        defenseSim = null;
+        battleDefensePanel = true;
+    }
+
+    private void ChainChanged(bool cambio)
+    {
+        if (!cambio) return;
+        defenseSim = null;
+        if (progress.RegistrarCadena()) { Save(); Call("¡Nueva insignia! +100 XP", Violeta); }
+    }
+
+    private static string ChainDetail(UnidadBatalla u, string eslabon) => eslabon switch
+    {
+        "Esquiva" => u.ProbEsquiva > 0 ? (int)Math.Round(u.ProbEsquiva * 100) + "%" : "sin módulo",
+        "Bloqueo" => "ESPACIO",
+        "Armadura" => u.ReduccionArmadura > 0 ? "-" + u.ReduccionArmadura : "sin blindaje",
+        "Escudo" => u.Escudo ? "ACTIVO" : "apagado",
+        _ => u.Vida + "/" + u.VidaMax
+    };
+
+    private void DrawDefensePanel(Graphics g)
+    {
+        buttons.Clear();                      // el panel tapa todo: nada de clics hacia la batalla
+        var b = battle!;
+        Box(g, 0, 0, 1200, 760, Color.FromArgb(205, Navy), 0);
+        Box(g, 130, 96, 940, 506, PanelColor, 22);
+        TextAt(g, "CHAIN OF RESPONSIBILITY", 160, 114, 12, Mint, true);
+        TextAt(g, "Cadena de defensas", 160, 132, 28, Gold, true);
+        Button(g, "Cerrar", 950, 112, 100, 38, () => battleDefensePanel = false, true);
+        Wrap(g, "Cada golpe pasa de un eslabón al siguiente hasta que alguien lo absorbe. Reordená, quitá o agregá eslabones y mirá cómo cambia el resultado.", 160, 172, 880, 40, 14, Muted);
+
+        var unidades = b.Contexto.Aliados.Concat(b.Contexto.Enemigos.Cast<UnidadBatalla>()).ToList();
+        defenseUnit ??= unidades[0];
+        var du = defenseUnit;
+        for (int k = 0; k < unidades.Count; k++)
+        {
+            var u = unidades[k];
+            string etiqueta = u is Enemigo ? u.Nombre.Replace("Mutante ", "M. ") : u.Rol;
+            Button(g, ShortLabel(etiqueta, 13), 160 + k * 126, 218, 120, 34, () => { defenseUnit = u; defenseSim = null; }, ReferenceEquals(u, du), u.Viva);
+        }
+
+        var cadena = du.Defensa;
+        TextAt(g, du.Nombre.ToUpperInvariant() + (du.Escudo ? " · ESCUDO ACTIVO" : ""), 160, 268, 13, Gold, true);
+        var nombres = cadena.Eslabones.Select(e => e.Nombre).ToList();
+        float ancho = 130, sep = 30, x0 = 130 + (940 - (nombres.Count * ancho + (nombres.Count - 1) * sep)) / 2;
+        for (int k = 0; k < nombres.Count; k++)
+        {
+            string nombre = nombres[k]; float x = x0 + k * (ancho + sep);
+            bool esVida = nombre == "Vida";
+            Box(g, x, 296, ancho, 76, esVida ? Color.FromArgb(60, Danger) : Color.FromArgb(60, Mint), 14);
+            CenterText(g, nombre, x + ancho / 2, 306, 17, White, true);
+            CenterText(g, ChainDetail(du, nombre), x + ancho / 2, 336, 13, esVida ? Danger : Mint, true);
+            if (k < nombres.Count - 1) CenterText(g, "→", x + ancho + sep / 2, 316, 22, Gold, true);
+            if (esVida) continue;
+            Button(g, "<", x, 380, 34, 28, () => ChainChanged(cadena.Mover(nombre, -1)), false, k > 0);
+            Button(g, ">", x + 36, 380, 34, 28, () => ChainChanged(cadena.Mover(nombre, 1)), false, k < nombres.Count - 2);
+            Button(g, "Quitar", x + 72, 380, 58, 28, () => ChainChanged(cadena.Quitar(nombre)));
+        }
+
+        var faltan = new[] { "Esquiva", "Bloqueo", "Armadura", "Escudo" }.Where(nm => !cadena.Contiene(nm)).ToList();
+        TextAt(g, faltan.Count > 0 ? "AGREGAR ESLABÓN" : "TODOS LOS ESLABONES ESTÁN EN LA CADENA", 160, 424, 12, Muted, true);
+        for (int k = 0; k < faltan.Count; k++)
+        {
+            string nuevo = faltan[k];
+            Button(g, "+ " + nuevo, 160 + k * 150, 444, 140, 34, () => ChainChanged(cadena.Agregar(nuevo)));
+        }
+        Button(g, "Probar impacto de 30", 780, 444, 250, 34, () => defenseSim = du.Defensa.Simular(30).Recorrido, true);
+
+        var lineas = defenseSim ?? du.UltimoAtaque?.Recorrido;
+        TextAt(g, defenseSim != null ? "SIMULACIÓN · impacto de 30 (no cambia la nave)" : "ÚLTIMO ATAQUE RECIBIDO", 160, 488, 12, Violeta, true);
+        if (lineas == null || lineas.Count == 0) TextAt(g, "Todavía no recibió ataques. Usá \"Probar impacto de 30\".", 160, 508, 14, Muted);
+        else
+        {
+            var visibles = lineas.Where(l => !l.StartsWith("   ")).Take(7).ToList();
+            for (int k = 0; k < visibles.Count; k++) TextAt(g, ShortLabel(visibles[k], 110), 160, 506 + k * 13, 11, k == visibles.Count - 1 ? Gold : White);
+        }
+    }
+
     private void DrawBattleEnd(Graphics g)
     {
         buttons.Clear();
