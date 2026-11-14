@@ -239,11 +239,13 @@ public sealed partial class GameForm : Form
         if (corridor.Vida > 0) Box(g, 610, 58, 245 * corridor.Vida / 100f, 18, corridor.Vida > 50 ? Mint : corridor.Vida > 25 ? Gold : Red, 8);
         TextAt(g, corridor.Vida + " / 100", 869, 55, 18, White, true);
         TextAt(g, corridor.Bajas + " / 15 mutantes", 992, 57, 16, Gold, true);
+        DrawEstadoHud(g);
         TextAt(g, "WASD / flechas: mover     Mouse: apuntar     Clic / Espacio: disparar     Esc: pausa · F1: ayuda", 40, 109, 14, Muted);
         var gs = g.Save(); g.SetClip(new RectangleF(40, 145, 1120, 565)); g.TranslateTransform(40 - Camera, 145);
         DrawBattleInterior(g);
         foreach (var o in corridor.Obstaculos) DrawBattleObstacle(g, o);
         foreach (var med in corridor.Botiquines) DrawMedkit(g, med);
+        foreach (var f in corridor.Furias) DrawFuria(g, f);
         Box(g, 2510, 155, 135, 250, Line, 16); Box(g, 2521, 171, 113, 216, Navy, 8);
         LineTo(g, Mint, 2578, 182, 2578, 365, 4); Paw(g, 2578, 264, .85f, Gold);
         TextAt(g, "LAB BIO-01", 2516, 374, 13, Gold, true);
@@ -255,7 +257,8 @@ public sealed partial class GameForm : Form
         }
         foreach (var b in corridor.Disparos)
         { Ellipse(g, Color.FromArgb(50, Mint), b.Posicion.X - 10, b.Posicion.Y - 10, 20, 20); Ellipse(g, Mint, b.Posicion.X - 4, b.Posicion.Y - 4, 8, 8); }
-        if (corridor.Invulnerable <= 0 || ((int)(time * 14) % 2 == 0)) Cat(g, corridor.Jugador.X, corridor.Jugador.Y, .82f, Mint, false, MathF.Atan2(mouse.Y - 145 - corridor.Jugador.Y, mouse.X - 40 + Camera - corridor.Jugador.X), "Blanco", time, keys.Any(k => k is Keys.W or Keys.A or Keys.S or Keys.D or Keys.Up or Keys.Down or Keys.Left or Keys.Right) ? playerStride : 0, hero: true);
+        if (corridor.Invulnerable <= 0 || ((int)(time * 14) % 2 == 0)) Cat(g, corridor.Jugador.X, corridor.Jugador.Y, .82f, ColorEstado(), false, MathF.Atan2(mouse.Y - 145 - corridor.Jugador.Y, mouse.X - 40 + Camera - corridor.Jugador.X), "Blanco", time, keys.Any(k => k is Keys.W or Keys.A or Keys.S or Keys.D or Keys.Up or Keys.Down or Keys.Left or Keys.Right) ? playerStride : 0, hero: true);
+        DrawEstadoGato(g);
         var aim = new Vector2(mouse.X - 40 + Camera, mouse.Y - 145) - corridor.Jugador;
         if (aim.LengthSquared() > 0)
         { aim = Vector2.Normalize(aim); LineTo(g, Blue, corridor.Jugador.X + aim.X * 21, corridor.Jugador.Y + aim.Y * 21, corridor.Jugador.X + aim.X * 37, corridor.Jugador.Y + aim.Y * 37, 8); }
